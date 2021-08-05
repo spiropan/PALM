@@ -187,7 +187,7 @@ if opts.NPC,
         Tppara                      = cell(1);
         plm.Tmax                    = cell(1);
     end
-    
+
     % Spatial stats, NPC
     if opts.cluster.npc.do,
         plm.Tclu                    = plm.Tmax;   % to store cluster NPC statistic
@@ -216,7 +216,7 @@ if opts.MV,
     pparamv                         = cell(plm.nM,1);
     plm.Qmax                        = cell(plm.nM,1);  % to store the max multivariate statistic
     plm.mvrev                       = cell(plm.nM,1);  % reverse the direction in which a stat is significant?
-    
+
     % Spatial stats, multivariate
     if opts.cluster.mv.do,
         plm.Qclu                    = cell(plm.nM,1);  % to store cluster MV statistic
@@ -228,7 +228,7 @@ if opts.MV,
         plm.Qtfce                   = cell(plm.nM,1);  % for the unpermuted TFCE
         plm.Qtfcemax                = cell(plm.nM,1);  % to store the max TFCE statistic
     end
-    
+
     % Lower levels of these variables
     for m = 1:plm.nM,
         Q{m}                        = cell(plm.nC(m),1);
@@ -341,12 +341,12 @@ for m = 1:plm.nM,
     prepglm{m} = cell(plm.nC(m),1);
     fastpiv{m} = cell(plm.nC(m),1);
     for c = 1:plm.nC(m),
-        
+
         % If there are voxelwise EVs:
         if opts.evperdat,
             fprintf('Doing maths for -evperdat before model fitting: [Design %d/%d, Contrast %d/%d] (may take several minutes)\n',m,plm.nM,c,plm.nC(m));
         end
-        
+
         % Partition the model, now using the method chosen by the user
         if opts.designperinput, loopY = m; else loopY = 1:plm.nY; end
         if opts.missingdata,
@@ -386,7 +386,7 @@ for m = 1:plm.nM,
         for y = loopY,
             if opts.missingdata, loopO = 1:numel(plm.Mp{y}{m}{c}); else loopO = 1; end
             for o = loopO,
-                
+
                 % To avoid rank deficiency issues after partitioning, remove
                 % columns that are all equal to zero. This won't be done for
                 % evperdat because it's too slow and can make the designs too
@@ -401,7 +401,7 @@ for m = 1:plm.nM,
                     plm.Mp{y}{m}{c}{o}(:,idx)  = [];
                     plm.eCm{y}{m}{c}{o}(idx,:) = [];
                 end
-                
+
                 % Residual-forming matrix. This is used by the ter Braak method and
                 % also to compute some of the stats later. Note that, even though the
                 % residual-forming matrix changes at every permutation, the trace
@@ -447,7 +447,7 @@ for m = 1:plm.nM,
             end
         end
         clear y o;
-        
+
         % Some methods don't work well if Z is empty, and there is no point in
         % using any of them all anyway.
         if opts.designperinput, loopY = m; else loopY = 1:plm.nY; end
@@ -462,7 +462,7 @@ for m = 1:plm.nM,
             end
         end
         clear y o;
-        
+
         % MV/CCA
         %%% DOUBLE-CHECK THE DEGREES-OF-FREEDOM!!
         if opts.MV,
@@ -471,7 +471,7 @@ for m = 1:plm.nM,
             if opts.accel.negbin,
                 plm.Yq{m}{c} = cat(3,plm.Yset{:});
             end
-            
+
             % Define the functions for the stats. Note that none is
             % available if nVG > 1, and this should have been
             % checked when taking the arguments.
@@ -481,42 +481,42 @@ for m = 1:plm.nM,
                 plm.mvrev{m}{c} = false;
             else
                 switch lower(opts.mvstat),
-                    
+
                     case {'wilks','auto'},
                         plm.Qname{m}{c} = '_wilks';
                         plm.qfun        = @(H,E)wilks(H,E);
                         pparamv{m}{c}   = @(Q)wilksp(Q, ...
                             plm.rC{m}(c),plm.N-plm.rM{y}{m}{c}{o},plm.nY);
                         plm.mvrev{m}{c} = true;
-                        
+
                     case {'lawley','lawley-hotelling'},
                         plm.Qname{m}{c} = '_lawley-hotelling';
                         plm.qfun        = @(H,E)lawley(H,E);
                         pparamv{m}{c}   = @(Q)lawleyp(Q, ...
                             plm.rC{m}(c),plm.N-plm.rM{y}{m}{c}{o},plm.nY);
                         plm.mvrev{m}{c} = false;
-                        
+
                     case 'pillai',
                         plm.Qname{m}{c} = '_pillai';
                         plm.qfun        = @(H,E)pillai(H,E);
                         pparamv{m}{c}   = @(Q)pillaip(Q, ...
                             plm.rC{m}(c),plm.N-plm.rM{y}{m}{c}{o},plm.nY);
                         plm.mvrev{m}{c} = false;
-                        
+
                     case {'roy-ii','roy'},
                         plm.Qname{m}{c} = '_roy-ii';
                         plm.qfun        = @(H,E)roy_ii(H,E);
                         pparamv{m}{c}   = @(Q)roy_iip(Q, ...
                             plm.rC{m}(c),plm.N-plm.rM{y}{m}{c}{o},plm.nY);
                         plm.mvrev{m}{c} = false;
-                        
+
                     case 'roy-iii',
                         plm.Qname{m}{c} = '_roy-iii';
                         plm.qfun        = @(H,E)roy_iii(H,E);
                         plm.mvrev{m}{c} = false;
                 end
             end
-            
+
             % For the MV methods in which the most significant stats are the
             % smallest, rather than the largest, use reverse comparisons.
             if plm.mvrev{m}{c},
@@ -526,23 +526,23 @@ for m = 1:plm.nM,
                 mvrel  = @ge;
                 mvextr = @max;
             end
-            
+
         elseif opts.CCA,
-            
+
             % Output string, statistic function, and side to test
             plm.Qname{m}{c} = sprintf('_cca%d',opts.ccaorplsparm);
             plm.qfun = @cca;
             plm.mvrev{m}{c} = false;
-            
+
         elseif opts.PLS,
-            
+
             % Output string, statistic function, and side to test
             plm.Qname{m}{c} = sprintf('_pls%d',opts.ccaorplsparm);
             plm.qfun = @simpls;
             plm.mvrev{m}{c} = false;
-            
+
         end
-        
+
         % Effective rank of the matrix nP by Ysiz(y) used for the
         % low rank approximation. This number varies according to
         % the permutation and regression strategies, but it's
@@ -550,7 +550,7 @@ for m = 1:plm.nM,
         if opts.accel.lowrank,
             plm.nJ{m}(c) = plm.N*(plm.N+1)/2;
         end
-        
+
         % Decide which method is going to be used for the regression and
         % permutations, compute some useful matrices for later and create
         % the appropriate function handle to prepare for the model fit.
@@ -569,11 +569,11 @@ for m = 1:plm.nM,
                 plm.Hz{y}{m}{c} = tmp;
                 plm.Rz{y}{m}{c} = tmp;
                 for o = loopO,
-                    
+
                     % Pick the regression/permutation method
                     N = size(plm.Mp{y}{m}{c}{o},1);
                     switch lower(plm.rmethod{y}{m}{c}{o}),
-                        
+
                         case 'noz',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.eC{y}{m}{c}{o} = plm.eC{1}{m}{c}{1};
@@ -581,7 +581,7 @@ for m = 1:plm.nM,
                                 plm.eC{y}{m}{c}{o} = plm.eCx{y}{m}{c}{o};
                             end
                             prepglm{m}{c} = @noz3d;
-                            
+
                         case 'exact',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.eC{y}{m}{c}{o} = plm.eC{1}{m}{c}{1};
@@ -589,7 +589,7 @@ for m = 1:plm.nM,
                                 plm.eC{y}{m}{c}{o} = plm.eCx{y}{m}{c}{o};
                             end
                             prepglm{m}{c} = @exact3d;
-                            
+
                         case 'draper-stoneman',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.eC{y}{m}{c}{o} = plm.eC{1}{m}{c}{1};
@@ -597,7 +597,7 @@ for m = 1:plm.nM,
                                 plm.eC{y}{m}{c}{o} = plm.eCm{y}{m}{c}{o};
                             end
                             prepglm{m}{c} = @draperstoneman3d;
-                            
+
                         case 'still-white',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Rz{y}{m}{c}{o} = plm.Rz{1}{m}{c}{1};
@@ -611,7 +611,7 @@ for m = 1:plm.nM,
                                 plm.eC{y}{m}{c}{o} = plm.eCx{y}{m}{c}{o};
                             end
                             prepglm{m}{c} = @stillwhite3d;
-                            
+
                         case 'freedman-lane',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Hz{y}{m}{c}{o} = plm.Hz{1}{m}{c}{1};
@@ -628,7 +628,7 @@ for m = 1:plm.nM,
                                 plm.eC{y}{m}{c}{o} = plm.eCm{y}{m}{c}{o};
                             end
                             prepglm{m}{c} = @freedmanlane3d;
-                            
+
                         case 'terbraak',
                             isterbraak = true;
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
@@ -637,7 +637,7 @@ for m = 1:plm.nM,
                                 plm.eC{y}{m}{c}{o} = plm.eCm{y}{m}{c}{o};
                             end
                             prepglm{m}{c} = @terbraak3d;
-                            
+
                         case 'kennedy',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Rz{y}{m}{c}{o} = plm.Rz{1}{m}{c}{1};
@@ -651,7 +651,7 @@ for m = 1:plm.nM,
                                 plm.eC{y}{m}{c}{o} = plm.eCx{y}{m}{c}{o};
                             end
                             prepglm{m}{c} = @kennedy3d;
-                            
+
                         case 'manly',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.eC{y}{m}{c}{o} = plm.eC{1}{m}{c}{1};
@@ -659,7 +659,7 @@ for m = 1:plm.nM,
                                 plm.eC{y}{m}{c}{o} = plm.eCm{y}{m}{c}{o};
                             end
                             prepglm{m}{c} = @manly; % same as the usual Manly
-                            
+
                         case 'huh-jhun',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Rz{y}{m}{c}{o} = plm.Rz{1}{m}{c}{1};
@@ -681,7 +681,7 @@ for m = 1:plm.nM,
                                 plm.eC{y}{m}{c}{o} = plm.eCx{y}{m}{c}{o};
                             end
                             prepglm{m}{c} = @huhjhun3d;
-                            
+
                         case 'dekker',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Rz{y}{m}{c}{o} = plm.Rz{1}{m}{c}{1};
@@ -696,7 +696,7 @@ for m = 1:plm.nM,
                             end
                             prepglm{m}{c} = @dekker3d;
                     end
-                    
+
                     % Pick a name for the function that will compute the statistic
                     % and the name to save the files later.
                     if opts.pearson,
@@ -719,7 +719,7 @@ for m = 1:plm.nM,
                 end
             end
             clear y o;
-            
+
             % MV/CCA/PLS/Noperm
             if opts.MV && ~ opts.accel.noperm,
                 if plm.rC{m}(c) == 1 && any(strcmpi(opts.mvstat,{'auto','hotellingtsq'})),
@@ -751,9 +751,9 @@ for m = 1:plm.nM,
                 end
             end
             clear y o;
-            
+
         else % i.e., if not evperdat
-            
+
             if opts.designperinput, loopY = m; else loopY = 1:plm.nY; end
             for y = loopY,
                 if opts.missingdata, loopO = 1:numel(plm.Mp{y}{m}{c}); else loopO = 1; end
@@ -762,11 +762,11 @@ for m = 1:plm.nM,
                 plm.Hz{y}{m}{c} = tmp;
                 plm.Rz{y}{m}{c} = tmp;
                 for o = loopO,
-                    
+
                     % Pick the regression/permutation method
                     N = size(plm.Mp{y}{m}{c}{o},1);
                     switch lower(plm.rmethod{y}{m}{c}{o}),
-                        
+
                         case 'noz',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.eC{y}{m}{c}{o} = plm.eC{1}{m}{c}{1};
@@ -778,7 +778,7 @@ for m = 1:plm.nM,
                             else
                                 prepglm{m}{c} = @noz;
                             end
-                            
+
                         case 'exact',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.eC{y}{m}{c}{o} = plm.eC{1}{m}{c}{1};
@@ -790,7 +790,7 @@ for m = 1:plm.nM,
                             else
                                 prepglm{m}{c} = @exact;
                             end
-                            
+
                         case 'draper-stoneman',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.eC{y}{m}{c}{o} = plm.eC{1}{m}{c}{1};
@@ -802,7 +802,7 @@ for m = 1:plm.nM,
                             else
                                 prepglm{m}{c} = @draperstoneman;
                             end
-                            
+
                         case 'still-white',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Rz{y}{m}{c}{o} = plm.Rz{1}{m}{c}{1};
@@ -816,7 +816,7 @@ for m = 1:plm.nM,
                             else
                                 prepglm{m}{c} = @stillwhite;
                             end
-                            
+
                         case 'freedman-lane',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Hz{y}{m}{c}{o} = plm.Hz{1}{m}{c}{1};
@@ -832,7 +832,7 @@ for m = 1:plm.nM,
                             else
                                 prepglm{m}{c} = @freedmanlane;
                             end
-                            
+
                         case 'terbraak',
                             isterbraak = true;
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
@@ -845,7 +845,7 @@ for m = 1:plm.nM,
                             else
                                 prepglm{m}{c} = @terbraak;
                             end
-                            
+
                         case 'kennedy',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Rz{y}{m}{c}{o} = plm.Rz{1}{m}{c}{1};
@@ -859,7 +859,7 @@ for m = 1:plm.nM,
                             else
                                 prepglm{m}{c} = @kennedy;
                             end
-                            
+
                         case 'manly',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.eC{y}{m}{c}{o} = plm.eC{1}{m}{c}{1};
@@ -871,7 +871,7 @@ for m = 1:plm.nM,
                             else
                                 prepglm{m}{c} = @manly;
                             end
-                            
+
                         case 'huh-jhun',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Rz{y}{m}{c}{o} = plm.Rz{1}{m}{c}{1};
@@ -889,7 +889,7 @@ for m = 1:plm.nM,
                             else
                                 prepglm{m}{c} = @huhjhun;
                             end
-                            
+
                         case 'dekker',
                             if ~ opts.missingdata && ~ opts.designperinput && y > 1,
                                 plm.Rz{y}{m}{c}{o} = plm.Rz{1}{m}{c}{1};
@@ -904,7 +904,7 @@ for m = 1:plm.nM,
                                 prepglm{m}{c} = @dekker;
                             end
                     end
-                    
+
                     % Pick a name for the function that will compute the statistic
                     % and the name to save the files later.
                     if opts.pearson,
@@ -937,7 +937,7 @@ for m = 1:plm.nM,
                 end
             end
             clear y o;
-            
+
             % MV/CCA/Noperm
             if opts.MV  && ~ opts.accel.noperm,
                 if plm.rC{m}(c) == 1 && any(strcmpi(opts.mvstat,{'auto','hotellingtsq'})),
@@ -956,7 +956,7 @@ for m = 1:plm.nM,
                         'kennedy','huh-jhun','dekker'})),
                     plm.Rz{y}{m}{c}{o} = eye(plm.N) - plm.Z{y}{m}{c}{o}*pinv(plm.Z{y}{m}{c}{o});
                 end
-                
+
                 % Make the 3D dataset & residualise wrt Z
                 plm.Yq{m}{c} = cat(3,plm.Yset{:});
                 for y = 1:plm.nY,
@@ -1013,7 +1013,7 @@ if opts.syncperms,
     else
         fprintf('Doing the approximation without permutations.\n');
     end
-    
+
     % This is for the negative binomial mode
     if opts.accel.negbin && ~ opts.saveunivariate,
         dothisY = false(plm.nY,1);
@@ -1045,24 +1045,24 @@ end
 % For each permutation (outer loop)
 ticP = tic;
 for po = P_outer,
-    
+
     % For each design matrix
     for m = 1:plm.nM,
-        
+
         % String with the counter
         if po == 1 && (plm.nM > 1 || opts.verbosefilenames),
             plm.mstr{m} = sprintf('_d%d',m);
         end
-        
+
         % For each contrast
         for c = 1:plm.nC(m),
-            
+
             % String with the counter
             if max(plm.nC) > 1 || opts.verbosefilenames,
                 ctmp = c + opts.conskipcount;
                 plm.cstr{m}{c} = sprintf('_c%d',ctmp);
             end
-            
+
             % This is for the negative binomial mode
             if ~ opts.syncperms,
                 if opts.accel.negbin && ~ opts.saveunivariate,
@@ -1072,7 +1072,7 @@ for po = P_outer,
                 end
                 dotheMVorCCAorPLS = true;
             end
-            
+
             % Create the permutation set, while taking care of the synchronized
             % permutations (see the outer loop above)
             if opts.syncperms,
@@ -1105,7 +1105,7 @@ for po = P_outer,
                 end
                 P_inner = 1:plm.nP{m}(c);
             end
-            
+
             if po == 1 && ~ opts.accel.noperm,
                 % If the user wants to save the permutations, save the vectors now.
                 % This has 3 benefits: (1) the if-test below will run just once, rather
@@ -1124,7 +1124,7 @@ for po = P_outer,
                     end
                     fclose(fid);
                 end
-                
+
                 % If the user requests, save the permutation metrics
                 if opts.savemetrics,
                     fid = fopen(sprintf('%s%s%s_metrics.csv',opts.o,plm.mstr{m},plm.cstr{m}{c}),'w');
@@ -1140,7 +1140,7 @@ for po = P_outer,
                         'Average Spearman correlation,%f\n'], plm.metr{m}{c});
                     fclose(fid);
                 end
-                
+
                 % Some vars for later
                 if isterbraak, psi0 = cell(plm.nY,1); end
                 if opts.accel.negbin, ysel = cell(plm.nY,1); end
@@ -1157,20 +1157,20 @@ for po = P_outer,
                     end
                 end
             end
-            
+
             if ~ opts.syncperms,
                 ProgressNum = 0;
             end
-            
+
             % Whimsical permutation p-vals using no permutations at all
             if opts.accel.noperm,
                 o = 1;
-                
+
                 % Prepare W for the univariate (no for-loop here):
                 if opts.saveunivariate,
                     normY = sum(plm.Yq{m}{c}.^2,1).^.5;
                     u     = bsxfun(@rdivide,plm.Yq{m}{c},normY);
-                    
+
                     % Also, take care of the file names
                     if (plm.nY > 1 || opts.verbosefilenames),
                         if opts.designperinput, loopY = m; else loopY = 1:plm.nY; end
@@ -1182,7 +1182,7 @@ for po = P_outer,
                 if opts.savepara,
                     plm.df2{y}{m}{c} = plm.N - plm.rM{y}{m}{c}{o};
                 end
-                
+
                 % For four cases below, compute the statistic trace(AW),
                 % the moments of the permutation distribution, and fit a gamma:
                 % Because this all runs very quickly, the unpermuted
@@ -1205,7 +1205,7 @@ for po = P_outer,
                                     plm.Gppara{y}{m}{c}(1,t) = pillaip(plm.G{y}{m}{c}(1,t),...
                                         plm.rC{m}(c),plm.df2{y}{m}{c},plm.nY);
                                 end
-                                
+
                                 % If rank(C)=1, the test can be two-tailed,
                                 % under the assumption that it's symmetric
                                 if plm.rC{m}(c) == 1 && ~ opts.twotail,
@@ -1262,7 +1262,7 @@ for po = P_outer,
                                 plm.Gppara{y}{m}{c} = pillaip(plm.G{y}{m}{c},...
                                     plm.rC{m}(c),plm.df2{y}{m}{c},plm.nY);
                             end
-                            
+
                             % If rank(C)=1, the test can be two-tailed,
                             % under the assumption that it's symmetric
                             if plm.rC{m}(c) == 1 && ~ opts.twotail,
@@ -1293,7 +1293,7 @@ for po = P_outer,
                         end
                     end
                 end
-                
+
                 % Convert the MV statistic to z if that was requested.
                 if opts.zstat,
                     plm.Q{m}{c} = erfcinv(2*plm.Qppara{m}{c})*sqrt(2);
@@ -1301,22 +1301,22 @@ for po = P_outer,
                         plm.mvstr = horzcat('_z',plm.mvstr(2:end));
                     end
                 end
-                
+
                 % Ensure that not even the univariate will be done
                 P_inner = [];
             end
-            
+
             % For each permutation (inner loop):
             for p = P_inner,
-                
+
                 % For each input dataset
                 if opts.designperinput, loopY = m; else loopY = 1:plm.nY; end
                 for y = loopY,
-                    
+
                     % This if is for the negative binomial mode (if one
                     % modality finished, others my keep running)
                     if dothisY(y),
-                        
+
                         % Some feedback
                         ProgressNum = ProgressNum + 1;
                         if opts.showprogress,
@@ -1330,7 +1330,7 @@ for po = P_outer,
                                     m,plm.nM,c,plm.nC(m),p,plm.nP{m}(c),y,plm.nY);
                             end
                         end
-                        
+
                         % String for the modality index & var for the max:
                         if p == 1,
                             plm.Gmax{y}{m}{c} = zeros(plm.nP{m}(c),1);
@@ -1338,7 +1338,7 @@ for po = P_outer,
                                 plm.ystr{y} = sprintf('_m%d',y);
                             end
                         end
-                        
+
                         % Shuffle the data and/or design.
                         if opts.accel.negbin,
                             if p == 1,
@@ -1359,7 +1359,7 @@ for po = P_outer,
                             YY = cell(1,nO);
                             loopO = 1:nO;
                             for o = loopO,
-                                
+
                                 % Prepare permutation matrix and indices of data and
                                 % design that will be removed
                                 if isempty(plm.imov{y}{m}{c}{o}),
@@ -1384,7 +1384,7 @@ for po = P_outer,
                                 else
                                     Ytmp = plm.Ymissp{y}{o};
                                 end
-                                
+
                                 % Select pieces for the data and design
                                 if isempty(plm.Z{y}{m}{c}{o}),
                                     [MM{o},YY{o}] = nozm(Ptmp,Ytmp,y,m,c,o,plm,ikeep);
@@ -1401,7 +1401,7 @@ for po = P_outer,
                         else
                             [M,Y] = prepglm{m}{c}(plm.Pset{p},plm.Yset{y},y,m,c,1,plm);
                         end
-                        
+
                         % Do the GLM fit.
                         if opts.missingdata && ~ opts.mcar,
                             [G{y}{m}{c},df2{y}{m}{c}] = fastmiss(Y,M,y,m,c,plm,opts,fastpiv{m}{c});
@@ -1417,7 +1417,7 @@ for po = P_outer,
                                 psi = plm.mldiv(M,Y);
                                 res = Y - M*psi;
                             end
-                            
+
                             % Save COPE and VARCOPE if requested (option -saveglm)
                             if p == 1 && opts.saveglm,
                                 o     = 1;
@@ -1471,14 +1471,14 @@ for po = P_outer,
                                 end
                                 clear('cope','varcope','cohen','cfvar','o');
                             end
-                            
+
                             % Unless this is negbin mode, there is no need to fit
                             % again for the MV later
                             if opts.MV && ~ opts.accel.negbin,
                                 psiq(:,:,y) = psi;
                                 resq(:,:,y) = res;
                             end
-                            
+
                             % ter Braak permutes under alternative.
                             if isterbraak,
                                 if p == 1,
@@ -1487,7 +1487,7 @@ for po = P_outer,
                                     psi = psi - psi0{y};
                                 end
                             end
-                            
+
                             % Compute the pivotal statistic.
                             if opts.pearson,
                                 G  {y}{m}{c} = fastpiv{m}{c}(M,psi,Y,y,m,c,1,plm);
@@ -1496,18 +1496,18 @@ for po = P_outer,
                                 [G{y}{m}{c},df2{y}{m}{c}] = fastpiv{m}{c}(M,psi,res,y,m,c,1,plm);
                             end
                         end
-                        
+
                         % This is for the conversion to z. Do it just once:
                         if p == 1 && (opts.designperinput || y == 1),
                             plm.rC0{m}(c) = plm.rC{m}(c);
                             plm.rC {m}(c) = 0;
                         end
-                        
+
                         % Low rank approximation
                         if opts.accel.lowrank,
-                            
+
                             if p < plm.nJ{m}(c),
-                                
+
                                 % First permutation, compute constants and init variables
                                 if p == 1,
                                     kappa {y}{m}{c}  = sqrt((plm.N-plm.rM{y}{m}{c}{o})/(plm.eC{y}{m}{c}{o}'*pinv(M'*M)*plm.eC{y}{m}{c}{o}));
@@ -1515,31 +1515,31 @@ for po = P_outer,
                                     Sperms{y}{m}{c}  = zeros(plm.nJ{m}(c),plm.Ysiz(y));
                                     plm.df2{y}{m}{c} = df2{y}{m}{c};
                                 end
-                                
+
                                 % Initial permutations are done fully
                                 [Bperms{y}{m}{c}(p,:),Sperms{y}{m}{c}(p,:)] = lowrankfac(plm.eC{y}{m}{c}{o},psi,res);
                                 if ~ opts.accel.lowrank_recon,
                                     G{y}{m}{c} = kappa{y}{m}{c}*Bperms{y}{m}{c}(p,:)./Sperms{y}{m}{c}(p,:).^.5;
                                 end
-                                
+
                             elseif p == plm.nJ{m}(c),
-                                
+
                                 % Including this one
                                 [Bperms{y}{m}{c}(p,:),Sperms{y}{m}{c}(p,:)] = lowrankfac(plm.eC{y}{m}{c}{o},psi,res);
                                 if ~ opts.accel.lowrank_recon,
                                     G{y}{m}{c} = kappa{y}{m}{c}*Bperms{y}{m}{c}(p,:)./Sperms{y}{m}{c}(p,:).^.5;
                                 end
-                                
+
                                 % Some feedback of the screen
                                 if opts.showprogress,
                                     fprintf('\t [Generating an orthonormal basis.]\n');
                                 end
-                                
+
                                 % Generate new bases
                                 plm.Bbasis{y}{m}{c} = palm_lowrank(Bperms{y}{m}{c});
                                 Smean{y}{m}{c}      = mean(Sperms{y}{m}{c}(:));
                                 plm.Sbasis{y}{m}{c} = palm_lowrank(bsxfun(@minus,Sperms{y}{m}{c},Smean{y}{m}{c}));
-                                
+
                                 % Reconstruct past permutations in these new bases
                                 if opts.accel.lowrank_recon,
                                     if opts.showprogress,
@@ -1547,7 +1547,7 @@ for po = P_outer,
                                     end
                                     Bperms{y}{m}{c} = palm_lowrank(Bperms{y}{m}{c},plm.Bbasis{y}{m}{c},plm.nsel(y),false         ,opts.showprogress);
                                     Sperms{y}{m}{c} = palm_lowrank(Sperms{y}{m}{c},plm.Sbasis{y}{m}{c},plm.nsel(y),Smean{y}{m}{c},opts.showprogress);
-                                    
+
                                     % Compute G, convert to z, recompute counters
                                     Bperms{y}{m}{c}        = kappa{y}{m}{c}*Bperms{y}{m}{c}./Sperms{y}{m}{c}.^.5;
                                     Bperms{y}{m}{c}        = palm_gtoz(Bperms{y}{m}{c},plm.rC0{m}(c),df2{y}{m}{c});
@@ -1556,20 +1556,20 @@ for po = P_outer,
                                     plm.Gpperm{y}{m}{c}    = sum(bsxfun(@ge,Bperms{y}{m}{c},plm.G{y}{m}{c}),1);
                                     plm.Gmax{y}{m}{c}(1:p) = max(Bperms{y}{m}{c},[],2);
                                 end
-                                
+
                                 % Free up a bit of memory
                                 Bperms{y}{m}{c} = [];
                                 Sperms{y}{m}{c} = [];
-                                
+
                             else
                                 % Once a basis is known, use it.
                                 [B{y}{m}{c},S{y}{m}{c}] = lowrankfac(plm.eC{y}{m}{c}{o},psi,res);
                                 B{y}{m}{c} = palm_lowrank(B{y}{m}{c},plm.Bbasis{y}{m}{c},ysel{y},false);
                                 S{y}{m}{c} = palm_lowrank(S{y}{m}{c},plm.Sbasis{y}{m}{c},ysel{y},Smean{y}{m}{c});
                                 G{y}{m}{c} = kappa{y}{m}{c}*B{y}{m}{c}./S{y}{m}{c}.^.5;
-                                
+
                                 if ~ isreal(G{y}{m}{c}),
-                                    
+
                                     % If this is a rare case in which the
                                     % axes get flipped, try again with a
                                     % different random set of voxels:
@@ -1579,7 +1579,7 @@ for po = P_outer,
                                     B{y}{m}{c} = palm_lowrank(B{y}{m}{c},plm.Bbasis{y}{m}{c},ysel{y},false);
                                     S{y}{m}{c} = palm_lowrank(S{y}{m}{c},plm.Sbasis{y}{m}{c},ysel{y},Smean{y}{m}{c});
                                     G{y}{m}{c} = kappa{y}{m}{c}*B{y}{m}{c}./S{y}{m}{c}.^.5;
-                                    
+
                                     % If it still fails, give up.
                                     if ~isreal(G{y}{m}{c}),
                                         error(['Problem with low rank completion for your data.\n'...
@@ -1588,14 +1588,14 @@ for po = P_outer,
                                 end
                             end
                         end
-                        
+
                         % Save the unpermuted statistic if not z-score
                         if ~ opts.zstat,
                             if p == 1,
                                 if opts.saveunivariate,
                                     palm_quicksave(G{y}{m}{c},0,opts,plm,y,m,c, ...
                                         sprintf('%s',opts.o,plm.Ykindstr{y},plm.Gname{m}{c},plm.ystr{y},plm.mstr{m},plm.cstr{m}{c}));
-                                    
+
                                     % Save also the degrees of freedom for the unpermuted
                                     if opts.savedof,
                                         if numel(df2{y}{m}{c}) == 1,
@@ -1610,14 +1610,14 @@ for po = P_outer,
                                     end
                                 end
                             end
-                            
+
                             % Save the stats for each permutation if that was asked
                             if opts.saveperms && ~ opts.accel.negbin && ~ opts.accel.lowrank,
                                 palm_quicksave(G{y}{m}{c},0,opts,plm,y,m,c, ...
                                     horzcat(sprintf('%s',opts.o,plm.Ykindstr{y},plm.Gname{m}{c},plm.ystr{y},plm.mstr{m},plm.cstr{m}{c}),sprintf('_perm%06d',p)));
                             end
                         end
-                        
+
                         % Convert to z-score
                         if   ( ~ opts.accel.lowrank || ...
                                 (opts.accel.lowrank &&   opts.accel.lowrank_recon && p > plm.nJ{m}(c)) || ...
@@ -1625,7 +1625,7 @@ for po = P_outer,
                                 (~ opts.missingdata || opts.mcar),
                             G{y}{m}{c} = palm_gtoz(G{y}{m}{c},plm.rC0{m}(c),df2{y}{m}{c});
                         end
-                        
+
                         % Save the unpermuted statistic if z-score
                         if opts.zstat,
                             if p == 1,
@@ -1637,23 +1637,23 @@ for po = P_outer,
                                         sprintf('%s',opts.o,plm.Ykindstr{y},plm.Gname{m}{c},plm.ystr{y},plm.mstr{m},plm.cstr{m}{c}));
                                 end
                             end
-                            
+
                             % Save the stats for each permutation if that was asked
                             if opts.saveperms && ~ opts.accel.negbin,
                                 palm_quicksave(G{y}{m}{c},0,opts,plm,y,m,c, ...
                                     horzcat(sprintf('%s',opts.o,plm.Ykindstr{y},plm.Gname{m}{c},plm.ystr{y},plm.mstr{m},plm.cstr{m}{c}),sprintf('_perm%06d',p)));
                             end
                         end
-                        
+
                         % This needs to be here, inside the if-condition) because of the
                         % lowrank approximation stuff
                         if opts.twotail && ~ opts.missingdata && ( ~ opts.accel.lowrank || p > plm.nJ{m}(c)),
                             G{y}{m}{c} = abs(G{y}{m}{c});
                         end
-                        
+
                         % Negative binomial approximation
                         if opts.accel.negbin,
-                            
+
                             % In p = 1, there is no counter being incremented (stays at 0) and the number
                             % of permutations performed stays also at 0. In other words, in the negbin mode,
                             % the first permutation is entirely ignored, so that the Haldane equation can
@@ -1681,14 +1681,14 @@ for po = P_outer,
                                 ysel{y} = plm.Gpperm{y}{m}{c} < opts.accel.negbin;
                             end
                         else
-                            
+
                             % In the first permutation, keep G and df2,
                             % and start the counter.
                             if ~ opts.accel.lowrank_recon && p == 1,
                                 plm.G  {y}{m}{c} = G  {y}{m}{c};
                                 plm.df2{y}{m}{c} = df2{y}{m}{c};
                             end
-                            
+
                             % Increment voxelwise counter
                             if     ~ opts.accel.lowrank || ...
                                     (opts.accel.lowrank &&   opts.accel.lowrank_recon && p > plm.nJ{m}(c)) || ...
@@ -1696,7 +1696,7 @@ for po = P_outer,
                                 plm.Gpperm{y}{m}{c}    = plm.Gpperm{y}{m}{c} + (G{y}{m}{c} >= plm.G{y}{m}{c});
                                 plm.Gmax  {y}{m}{c}(p) = max(G{y}{m}{c},[],2);
                             end
-                            
+
                             % Tail and gamma approximations
                             if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                                 if p == 1,
@@ -1704,7 +1704,7 @@ for po = P_outer,
                                 end
                                 plm.Gperms{y}{m}{c}(p,:) = G{y}{m}{c};
                             end
-                            
+
                             % Cluster statistic is here
                             if opts.cluster.uni.do,
                                 if p == 1,
@@ -1716,7 +1716,7 @@ for po = P_outer,
                                         G{y}{m}{c},y,opts.cluster.uni.thr,opts,plm,fastpiv{m}{c},M,psi,res,m,c,1);
                                 end
                             end
-                            
+
                             % TFCE is here
                             if opts.tfce.uni.do,
                                 Gtfce{y}{m}{c} = tfcefunc(G{y}{m}{c},y,opts,plm);
@@ -1728,7 +1728,7 @@ for po = P_outer,
                                 plm.Gtfcepperm{y}{m}{c} = plm.Gtfcepperm{y}{m}{c} + ...
                                     (Gtfce{y}{m}{c} >= plm.Gtfce{y}{m}{c});
                                 plm.Gtfcemax{y}{m}{c}(p) = max(Gtfce{y}{m}{c},[],2);
-                                
+
                                 % Tail and gamma approximations
                                 if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                                     if p == 1,
@@ -1743,7 +1743,7 @@ for po = P_outer,
                         end
                     end
                 end; clear y
-                
+
                 % NPC for Y only is here
                 if opts.npcmod && ~ opts.npccon && ~ opts.designperinput,
                     % Note that one design per input can't be run here,
@@ -1752,7 +1752,7 @@ for po = P_outer,
                     if opts.showprogress,
                         fprintf('\t [Combining modalities, Design %d/%d, Contrast %d/%d]\n',m,plm.nM,c,plm.nC(m));
                     end
-                    
+
                     % Just a feedback message for some situations.
                     if opts.showprogress && ...
                             ~ opts.zstat && ...
@@ -1765,14 +1765,14 @@ for po = P_outer,
                             'dudbridge-koeleman2'})),
                         fprintf('(1st perm is slower) ');
                     end
-                    
+
                     % Compute the combined statistic
                     for y = 1:plm.nY,
                         Gnpc  {1}(y,:) = G  {y}{m}{c};
                         df2npc{1}(y,:) = df2{y}{m}{c};
                     end; clear y
                     T{m}{c} = plm.fastnpc(Gnpc{1},0,df2npc{1});
-                    
+
                     % Since computing the parametric p-value for some methods
                     % can be quite slow, it's faster to run all these checks
                     % to ensure that 'plm.pparanpc' runs just once.
@@ -1780,20 +1780,20 @@ for po = P_outer,
                             opts.spatial.npc || ...
                             (p == 1 && opts.savepara && ~ plm.nonpcppara),
                         Tppara{m}{c} = plm.pparanpc(T{m}{c},plm.nY);
-                        
+
                         % Adjust the concordant signs for the concordant
                         % test. This is the same as 1-(1-P)^2, but
                         % preserves the precision.
                         if opts.concordant,
                             Tppara{m}{c} = 2*Tppara{m}{c}-Tppara{m}{c}.^2;
                         end
-                        
+
                         % Reserve the p-parametric to save later.
                         if p == 1,
                             plm.Tppara{m}{c} = Tppara{m}{c};
                         end
                     end
-                    
+
                     % Convert T to zstat if that was asked (note that at this point,
                     % G was already converted to z before making T).
                     if opts.zstat,
@@ -1802,21 +1802,21 @@ for po = P_outer,
                             plm.npcstr = horzcat('_z',plm.npcstr(2:end));
                         end
                     end
-                    
+
                     % Save the NPC Statistic (this is inside the loop because
                     % of the two-tailed option)
                     if p == 1,
                         palm_quicksave(T{m}{c},0,opts,plm,[],m,c, ...
                             sprintf('%s',opts.o,plm.Ykindstr{1},plm.npcstr,plm.Tname,plm.mstr{m},plm.cstr{m}{c}));
                     end
-                    
+
                     % If the user wants to save the NPC statistic for each
                     % permutation, save it now.
                     if opts.saveperms,
                         palm_quicksave(T{m}{c},0,opts,plm,[],m,c, ...
                             horzcat(sprintf('%s',opts.o,plm.Ykindstr{1},plm.npcstr,plm.Tname,plm.mstr{m},plm.cstr{m}{c}),sprintf('_perm%06d',p)));
                     end
-                    
+
                     % Increment counters
                     if p == 1,
                         plm.T{m}{c} = T{m}{c};
@@ -1825,7 +1825,7 @@ for po = P_outer,
                     plm.Tpperm{m}{c} = plm.Tpperm{m}{c} + ...
                         bsxfun(plm.npcrel,T{m}{c},plm.T{m}{c});
                     plm.Tmax{m}{c}(p) = plm.npcextr(T{m}{c},[],2);
-                    
+
                     % Tail and gamma approximations
                     if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                         if p == 1,
@@ -1833,13 +1833,13 @@ for po = P_outer,
                         end
                         plm.Tperms{m}{c}(p,:) = T{m}{c};
                     end
-                    
+
                     % Be sure to use z-scores for the spatial statistics, converting
                     % it if not already.
                     if opts.spatial.npc && ~ opts.zstat,
                         T{m}{c} = erfcinv(2*Tppara{m}{c})*sqrt(2);
                     end
-                    
+
                     % Cluster statistic NPC is here
                     if opts.cluster.npc.do,
                         if p == 1,
@@ -1851,7 +1851,7 @@ for po = P_outer,
                                 clusterfunc(T{m}{c},1,opts.cluster.npc.thr,opts,plm);
                         end
                     end
-                    
+
                     % TFCE NPC is here
                     if opts.tfce.npc.do,
                         Ttfce{m}{c} = tfcefunc(T{m}{c},1,opts,plm);
@@ -1863,7 +1863,7 @@ for po = P_outer,
                         plm.Ttfcepperm{m}{c} = plm.Ttfcepperm{m}{c} + ...
                             (Ttfce{m}{c} >= plm.Ttfce{m}{c});
                         plm.Ttfcemax{m}{c}(p) = max(Ttfce{m}{c},[],2);
-                        
+
                         % Tail and gamma approximations
                         if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                             if p == 1,
@@ -1873,10 +1873,10 @@ for po = P_outer,
                         end
                     end
                 end
-                
+
                 % MANOVA/MANCOVA is here. CCA is in the elseif below
                 if opts.MV && ~ opts.accel.noperm,
-                    
+
                     % This "if" is for the negative binomial mode.
                     if dotheMVorCCAorPLS,
                         if opts.showprogress,
@@ -1888,7 +1888,7 @@ for po = P_outer,
                                     m,plm.nM,c,plm.nC(m),p,plm.nP{m}(c));
                             end
                         end
-                        
+
                         % Shuffle the data and/or design.
                         if opts.accel.negbin,
                             if p == 1,
@@ -1904,7 +1904,7 @@ for po = P_outer,
                                 end
                             end
                         end
-                        
+
                         % ter Braak permutes under alternative.
                         if isterbraak,
                             if p == 1,
@@ -1913,10 +1913,10 @@ for po = P_outer,
                                 psiq  = psiq - psiq0;
                             end
                         end
-                        
+
                         % Compute the pivotal multivariate statistic.
                         Q{m}{c} = fastmv{m}{c}(M,psiq,resq);
-                        
+
                         % Since computing the parametric p-value for some methods
                         % can be quite slow, it's faster to run all these checks
                         % to ensure that 'pparamv' runs just once.
@@ -1926,13 +1926,13 @@ for po = P_outer,
                                 opts.savepara    && ...
                                 ~ plm.nomvppara),
                             Qppara{m}{c} = pparamv{m}{c}(Q{m}{c});
-                            
+
                             % Reserve the p-parametric to save later.
                             if p == 1,
                                 plm.Qppara{m}{c} = Qppara{m}{c};
                             end
                         end
-                        
+
                         % Convert to zstat if that was asked
                         if opts.zstat,
                             Q{m}{c} = erfcinv(2*Qppara{m}{c})*sqrt(2);
@@ -1940,13 +1940,13 @@ for po = P_outer,
                                 plm.mvstr = horzcat('_z',plm.mvstr(2:end));
                             end
                         end
-                        
+
                         % Save the MV statistic
                         if p == 1,
                             palm_quicksave(Q{m}{c},0,opts,plm,[],m,c, ...
                                 sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,plm.Qname{m}{c},plm.mstr{m},plm.cstr{m}{c}));
                         end
-                        
+
                         % Draft mode
                         if opts.accel.negbin,
                             % In p = 1, there is no counter being incremented (stays at 0) and the number
@@ -1965,7 +1965,7 @@ for po = P_outer,
                                 plm.Qdf2   {m}{c} = Qdf2{m}{c};
                                 plm.Qpperm {m}{c} = zeros(size(Q{m}{c}));
                                 plm.Qppermp{m}{c} = zeros(size(Q{m}{c}));
-                                
+
                             else
                                 % Otherwise, store the permutation in which a larger
                                 % statistic happened, and remove this voxel/vertex/face
@@ -1978,7 +1978,7 @@ for po = P_outer,
                                 yselq = plm.Qpperm{m}{c} < opts.accel.negbin;
                             end
                         else
-                            
+
                             % If the user wants to save the statistic for each
                             % permutation, save it now. This isn't obviously allowed
                             % in negbin mode, as the images are not complete. Also,
@@ -1995,7 +1995,7 @@ for po = P_outer,
                             end
                             plm.Qpperm{m}{c}      = plm.Qpperm{m}{c} + mvrel(Q{m}{c},plm.Q{m}{c});
                             plm.Qmax  {m}{c}(p)   = mvextr(Q{m}{c},[],2);
-                            
+
                             % Tail and gamma approximations
                             if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                                 if p == 1,
@@ -2003,13 +2003,13 @@ for po = P_outer,
                                 end
                                 plm.Qperms{m}{c}(p,:) = Q{m}{c};
                             end
-                            
+
                             % Now compute the spatial statistics, converting to z-score
                             % if not already.
                             if opts.spatial.mv && ~ opts.zstat,
                                 Q{m}{c} = erfcinv(2*Qppara{m}{c})*sqrt(2);
                             end
-                            
+
                             % Cluster statistic is here
                             if opts.cluster.mv.do,
                                 if p == 1,
@@ -2021,7 +2021,7 @@ for po = P_outer,
                                         clusterfunc(Q{m}{c},1,opts.cluster.mv.thr,opts,plm);
                                 end
                             end
-                            
+
                             % TFCE is here
                             if opts.tfce.mv.do,
                                 Qtfce{m}{c} = tfcefunc(Q{m}{c},1,opts,plm);
@@ -2033,7 +2033,7 @@ for po = P_outer,
                                 plm.Qtfcepperm{m}{c} = plm.Qtfcepperm{m}{c} + ...
                                     (Qtfce{m}{c} >= plm.Qtfce{m}{c});
                                 plm.Qtfcemax{m}{c}(p) = max(Qtfce{m}{c},[],2);
-                                
+
                                 % Tail and gamma approximations
                                 if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                                     if p == 1,
@@ -2047,9 +2047,9 @@ for po = P_outer,
                             dotheMVorCCAorPLS = false;
                         end
                     end
-                    
+
                 elseif opts.CCA || opts.PLS,
-                    
+
                     % This if is for the negative binomial mode.
                     if dotheMVorCCAorPLS,
                         if opts.showprogress,
@@ -2061,16 +2061,17 @@ for po = P_outer,
                                     m,plm.nM,c,plm.nC(m),p,plm.nP{m}(c),upper(plm.Qname{m}{c}(2:4)));
                             end
                         end
-                        
+
                         % Initialise some vars
                         if p == 1,
                             yselq   = true(1,1,plm.Ysiz(1));
                             Q{m}{c} = zeros(1,plm.Ysiz(1));
                         end
-                        
+
                         % Compute the CC coefficient
                         y = 1;
                         if opts.evperdat,
+                            M=zeros(size(plm.X{y}{m}{c}{1}));
                             for t = find(yselq)',
                                 M(:,:,t)   = plm.Pset{p}*plm.Rz{y}{m}{c}{1}(:,:,t)*plm.X{y}{m}{c}{1}(:,:,t);
                                 Q{m}{c}(t) = plm.qfun(plm.Yq{m}{c}(:,:,t),M(:,:,t),opts.ccaorplsparm);
@@ -2089,13 +2090,13 @@ for po = P_outer,
                                 plm.mvstr = horzcat('_z',plm.mvstr(2:end));
                             end
                         end
-                        
+
                         % Save the CCA statistic
                         if p == 1,
                             palm_quicksave(Q{m}{c},0,opts,plm,[],m,c, ...
                                 sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,plm.Qname{m}{c},plm.mstr{m},plm.cstr{m}{c}));
                         end
-                        
+
                         % In p = 1, there is no counter being incremented (stays at 0) and the number
                         % of permutations performed stays also at 0. In other words, in the negbin mode,
                         % the first permutation is entirely ignored, so that the Haldane equation can
@@ -2124,7 +2125,7 @@ for po = P_outer,
                                 yselq = plm.Qpperm{m}{c} < opts.accel.negbin;
                             end
                         else
-                            
+
                             % If the user wants to save the statistic for each
                             % permutation, save it now. This isn't obviously allowed
                             % in negbin mode, as the images are not complete. Also,
@@ -2134,7 +2135,7 @@ for po = P_outer,
                                 palm_quicksave(Q{m}{c},0,opts,plm,[],m,c, ...
                                     horzcat(sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,plm.Qname{m}{c},plm.mstr{m},plm.cstr{m}{c}),sprintf('_perm%06d',p)));
                             end
-                            
+
                             % In the first permutation, keep Q and start the counter.
                             if p == 1,
                                 plm.Q     {m}{c} = Q{m}{c};
@@ -2142,7 +2143,7 @@ for po = P_outer,
                             end
                             plm.Qpperm{m}{c}     = plm.Qpperm{m}{c} + (Q{m}{c} >= plm.Q{m}{c});
                             plm.Qmax  {m}{c}(p)  = max(Q{m}{c},[],2);
-                            
+
                             % Tail and gamma approximations
                             if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                                 if p == 1,
@@ -2150,7 +2151,7 @@ for po = P_outer,
                                 end
                                 plm.Qperms{m}{c}(p,:) = Q{m}{c};
                             end
-                            
+
                             % Now compute the MV spatial statistics, converting to z-score
                             % if not already.
                             if opts.spatial.mv,
@@ -2158,7 +2159,7 @@ for po = P_outer,
                                     Q{m}{c} = atanh(Q{m}{c});
                                 end
                             end
-                            
+
                             % Cluster statistic is here
                             if opts.cluster.mv.do,
                                 if p == 1,
@@ -2170,7 +2171,7 @@ for po = P_outer,
                                         clusterfunc(Q{m}{c},1,opts.cluster.mv.thr,opts,plm);
                                 end
                             end
-                            
+
                             % TFCE is here
                             if opts.tfce.mv.do,
                                 Qtfce{m}{c} = tfcefunc(Q{m}{c},1,opts,plm);
@@ -2181,7 +2182,7 @@ for po = P_outer,
                                 plm.Qtfcepperm{m}{c} = plm.Qtfcepperm{m}{c} + ...
                                     (Qtfce{m}{c} >= plm.Qtfce{m}{c});
                                 plm.Qtfcemax{m}{c}(p) = max(Qtfce{m}{c},[],2);
-                                
+
                                 % Tail and gamma approximations
                                 if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                                     if p == 1,
@@ -2202,16 +2203,16 @@ for po = P_outer,
             end
         end
     end
-    
-    % NPC for modalities with design per input is here    
+
+    % NPC for modalities with design per input is here
     if opts.npcmod && opts.designperinput && ~ opts.npccon,
-        
+
         % For each contrast (here we collapse designs and modalities, pairwise)
         for c = 1:plm.nC(1),
             if opts.showprogress,
                 fprintf('\t [Combining modalities (pairwise designs), Contrast %d/%d]\n',c,plm.nC(1));
             end
-            
+
             % Just a feedback message for some situations.
             if opts.showprogress && ...
                     ~ opts.zstat && ...
@@ -2224,14 +2225,14 @@ for po = P_outer,
                     'dudbridge-koeleman2'})),
                 fprintf('(1st perm is slower) ');
             end
-            
+
             % Compute the combined statistic
             for y = 1:plm.nY,
                 Gnpc  {1}(y,:) = G  {y}{y}{c};
                 df2npc{1}(y,:) = df2{y}{y}{c};
             end; clear y
             T{1}{c} = plm.fastnpc(Gnpc{1},0,df2npc{1});
-            
+
             % Since computing the parametric p-value for some methods
             % can be quite slow, it's faster to run all these checks
             % to ensure that 'plm.pparanpc' runs just once.
@@ -2239,20 +2240,20 @@ for po = P_outer,
                     opts.spatial.npc || ...
                     (po == 1 && opts.savepara && ~ plm.nonpcppara),
                 Tppara{1}{c} = plm.pparanpc(T{1}{c},plm.nY);
-                
+
                 % Adjust the concordant signs for the concordant
                 % test. This is the same as 1-(1-P)^2, but
                 % preserves the precision.
                 if opts.concordant,
                     Tppara{1}{c} = 2*Tppara{1}{c}-Tppara{1}{c}.^2;
                 end
-                
+
                 % Reserve the p-parametric to save later.
                 if po == 1,
                     plm.Tppara{1}{c} = Tppara{1}{c};
                 end
             end
-            
+
             % Convert T to zstat if that was asked (note that at this point,
             % G was already converted to z before making T).
             if opts.zstat,
@@ -2261,21 +2262,21 @@ for po = P_outer,
                     plm.npcstr = horzcat('_z',plm.npcstr(2:end));
                 end
             end
-            
+
             % Save the NPC Statistic (this is inside the loop because
             % of the two-tailed option)
             if po == 1,
                 palm_quicksave(T{1}{c},0,opts,plm,[],1,c, ...
                     sprintf('%s',opts.o,plm.Ykindstr{1},plm.npcstr,plm.Tname,plm.mstr{1},plm.cstr{m}{c}));
             end
-            
+
             % If the user wants to save the NPC statistic for each
             % permutation, save it now.
             if opts.saveperms,
                 palm_quicksave(T{1}{c},0,opts,plm,[],1,c, ...
                     horzcat(sprintf('%s',opts.o,plm.Ykindstr{1},plm.npcstr,plm.Tname,plm.mstr{1},plm.cstr{m}{c}),sprintf('_perm%06d',po)));
             end
-            
+
             % Increment counters
             if po == 1,
                 plm.T{1}{c} = T{1}{c};
@@ -2284,7 +2285,7 @@ for po = P_outer,
             plm.Tpperm{1}{c} = plm.Tpperm{1}{c} + ...
                 bsxfun(plm.npcrel,T{1}{c},plm.T{1}{c});
             plm.Tmax{1}{c}(po) = plm.npcextr(T{1}{c},[],2);
-            
+
             % Tail and gamma approximations
             if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                 if po == 1,
@@ -2292,13 +2293,13 @@ for po = P_outer,
                 end
                 plm.Tperms{1}{c}(po,:) = T{1}{c};
             end
-            
+
             % Be sure to use z-scores for the spatial statistics, converting
             % it if not already.
             if opts.spatial.npc && ~ opts.zstat,
                 T{1}{c} = erfcinv(2*Tppara{1}{c})*sqrt(2);
             end
-            
+
             % Cluster statistic NPC is here
             if opts.cluster.npc.do,
                 if po == 1,
@@ -2309,7 +2310,7 @@ for po = P_outer,
                         clusterfunc(T{1}{c},1,opts.cluster.npc.thr,opts,plm);
                 end
             end
-            
+
             % TFCE NPC is here
             if opts.tfce.npc.do,
                 Ttfce{1}{c} = tfcefunc(T{1}{c},1,opts,plm);
@@ -2321,7 +2322,7 @@ for po = P_outer,
                 plm.Ttfcepperm{1}{c} = plm.Ttfcepperm{1}{c} + ...
                     (Ttfce{1}{c} >= plm.Ttfce{1}{c});
                 plm.Ttfcemax{1}{c}(po) = max(Ttfce{1}{c},[],2);
-                
+
                 % Tail and gamma approximations
                 if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                     if po == 1,
@@ -2332,10 +2333,10 @@ for po = P_outer,
             end
         end
     end
-    
+
     % NPC for contrasts is here
     if opts.npccon,
-        
+
         % Just a feedback message for some situations.
         if opts.showprogress && ...
                 ~ opts.zstat && ...
@@ -2348,7 +2349,7 @@ for po = P_outer,
                 'dudbridge-koeleman2'})),
             fprintf('(1st perm is slower) ');
         end
-        
+
         % Assemble the stats for the combination
         if opts.npcmod,
             if opts.showprogress,
@@ -2387,10 +2388,10 @@ for po = P_outer,
                 end
             end; clear y m c j;
         end
-        
+
         % For each of set to be combined
         for j = 1:numel(Gnpc),
-            
+
             % String with the counter
             if po == 1
                 if j == 1,
@@ -2402,10 +2403,10 @@ for po = P_outer,
                     plm.jstr{j} = '';
                 end
             end
-            
+
             % Compute the combined statistic
             T{j} = plm.fastnpc(Gnpc{j},0,df2npc{j});
-            
+
             % Since computing the parametric p-value for some methods
             % can be quite slow, it's faster to run all these checks
             % to ensure that 'plm.pparanpc' runs just once.
@@ -2413,20 +2414,20 @@ for po = P_outer,
                     opts.spatial.npc || ...
                     (po == 1 && opts.savepara && ~ plm.nonpcppara),
                 Tppara{j} = plm.pparanpc(T{j},size(Gnpc{j},1));
-                
+
                 % Adjust the concordant signs for the concordant
                 % test. This is the same as 1-(1-P)^2, but
                 % preserves the precision.
                 if opts.concordant,
                     Tppara{j} = 2*Tppara{j}-Tppara{j}.^2;
                 end
-                
+
                 % Reserve the p-parametric to save later.
                 if po == 1,
                     plm.Tppara{j} = Tppara{j};
                 end
             end
-            
+
             % Convert T to zstat if that was asked (note that at this point,
             % G was already converted to z before making T).
             if opts.zstat,
@@ -2435,21 +2436,21 @@ for po = P_outer,
                     plm.npcstr = horzcat('_z',plm.npcstr(2:end));
                 end
             end
-            
+
             % Save the NPC Statistic (this is inside the loop because
             % of the two-tailed option)
             if po == 1,
                 palm_quicksave(T{j},0,opts,plm,j,[],[], ...
                     sprintf('%s',opts.o,plm.Ykindstr{j},plm.npcstr,plm.Tname,plm.jstr{j}));
             end
-            
+
             % If the user wants to save the NPC statistic for each
             % permutation, save it now.
             if opts.saveperms,
                 palm_quicksave(T{j},0,opts,plm,j,[],[], ...
                     horzcat(sprintf('%s',opts.o,plm.Ykindstr{j},plm.npcstr,plm.Tname,plm.jstr{j}),sprintf('_perm%06d',po)));
             end
-            
+
             % Increment counters
             if po == 1,
                 plm.T{j} = T{j};
@@ -2458,7 +2459,7 @@ for po = P_outer,
             plm.Tpperm{j} = plm.Tpperm{j} + ...
                 bsxfun(plm.npcrel,T{j},plm.T{j});
             plm.Tmax{j}(po) = plm.npcextr(T{j},[],2);
-            
+
             % Tail and gamma approximations
             if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                 if po == 1,
@@ -2466,13 +2467,13 @@ for po = P_outer,
                 end
                 plm.Tperms{j}(po,:) = T{j};
             end
-            
+
             % Be sure to use z-scores for the spatial statistics, converting
             % it if not already.
             if opts.spatial.npc && ~ opts.zstat,
                 T{j} = erfcinv(2*Tppara{j})*sqrt(2);
             end
-            
+
             % Cluster statistic NPC is here
             if opts.cluster.npc.do,
                 if po == 1,
@@ -2483,7 +2484,7 @@ for po = P_outer,
                         clusterfunc(T{j},1,opts.cluster.npc.thr,opts,plm);
                 end
             end
-            
+
             % TFCE NPC is here
             if opts.tfce.npc.do,
                 Ttfce{j} = tfcefunc(T{j},1,opts,plm);
@@ -2495,7 +2496,7 @@ for po = P_outer,
                 plm.Ttfcepperm{j} = plm.Ttfcepperm{j} + ...
                     (Ttfce{j} >= plm.Ttfce{j});
                 plm.Ttfcemax{j}(po) = max(Ttfce{j},[],2);
-                
+
                 % Tail and gamma approximations
                 if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
                     if po == 1,
@@ -3241,7 +3242,7 @@ function rpls = simpls(X,Y,k)
 % Based on the algorithm by:
 % * de Jong S. SIMPLS: An alternative approach to
 %   partial least squares regression.
-%   Chemom Intell Lab Syst. 1993 Mar;18(3):251-63. 
+%   Chemom Intell Lab Syst. 1993 Mar;18(3):251-63.
 [N,nCx] = size(X);
 nCy = size(Y,2);
 T   = zeros(N,k); U = T;
@@ -3252,7 +3253,7 @@ StS = S'*S;
 N1  = N - 1;
 for j = 1:k,
     StS = StS - z*z';
-    [evc,~] = eig(StS); 
+    [evc,~] = eig(StS);
     q = evc(:,end);
     r = S*q;
     t = X*r;
@@ -3515,7 +3516,7 @@ if nargout == 2,
     concordant = false;
 end
 switch lower(npcmethod),
-    
+
     case 'tippett',
         if concordant,
             fastnpc = @(G,df1,df2)min( ...
@@ -3526,7 +3527,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)tippettp(T,nG);
         npcrev      = true;
-        
+
     case 'fisher',
         if concordant,
             fastnpc = @(G,df1,df2)max( ...
@@ -3537,7 +3538,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)fisherp(T,nG);
         npcrev      = false;
-        
+
     case 'stouffer',
         if concordant,
             fastnpc = @(G,df1,df2)max( ...
@@ -3548,7 +3549,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)stoufferp(T,nG);
         npcrev      = false;
-        
+
     case 'wilkinson',
         if concordant,
             fastnpc = @(G,df1,df2)max(             ...
@@ -3559,7 +3560,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)wilkinsonp(T,nG,npcparm);
         npcrev      = false;
-        
+
     case 'winer',
         if concordant,
             fastnpc = @(G,df1,df2)max( ...
@@ -3570,7 +3571,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)winerp(T,nG);
         npcrev      = false;
-        
+
     case 'edgington',
         if concordant,
             fastnpc = @(G,df1,df2)min( ...
@@ -3581,7 +3582,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)edgingtonp(T,nG);
         npcrev      = true;
-        
+
     case 'mudholkar-george',
         if concordant,
             fastnpc = @(G,df1,df2)max(       ...
@@ -3592,7 +3593,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)mudholkargeorgep(T,nG);
         npcrev      = false;
-        
+
     case 'friston',
         if concordant,
             fastnpc = @(G,df1,df2)min( ...
@@ -3603,7 +3604,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)fristonp(T,nG,npcparm);
         npcrev      = true;
-        
+
     case 'darlington-hayes',
         if concordant,
             fastnpc = @(G,df1,df2)max(                   ...
@@ -3614,7 +3615,7 @@ switch lower(npcmethod),
         end
         pparanpc    = [];
         npcrev      = false;
-        
+
     case 'zaykin',
         if concordant,
             fastnpc = @(G,df1,df2)max(          ...
@@ -3625,7 +3626,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)zaykinp(T,nG,npcparm);
         npcrev      = false;
-        
+
     case 'dudbridge-koeleman',
         if concordant,
             fastnpc = @(G,df1,df2)max(                     ...
@@ -3636,7 +3637,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)dudbridgekoelemanp(T,nG,npcparm);
         npcrev      = false;
-        
+
     case 'dudbridge-koeleman2',
         if concordant,
             fastnpc = @(G,df1,df2)max(                                   ...
@@ -3647,7 +3648,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)dudbridgekoeleman2p(T,nG,npcparm,npcparm2);
         npcrev      = false;
-        
+
     case 'taylor-tibshirani',
         if concordant,
             fastnpc = @(G,df1,df2)max(        ...
@@ -3658,7 +3659,7 @@ switch lower(npcmethod),
         end
         pparanpc    = @(T,nG)taylortibshiranip(T,nG);
         npcrev      = false;
-        
+
     case 'jiang',
         if concordant,
             fastnpc = @(G,df1,df2)max(         ...
@@ -3710,11 +3711,11 @@ function S = spr(X)
 % the result kept throughout runs.
 persistent useway1;
 if isempty(useway1),
-    
+
     % Test both ways and compute the timings.
     tic; S1 = way1(X); w1 = toc;
     tic; S2 = way2(X); w2 = toc;
-    
+
     % The variables sp1 and sp2 should be absolutely
     % identical but they may have sightly different numerical
     % precisions so to be consistent, choose the same that will
