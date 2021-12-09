@@ -86,6 +86,7 @@ opts.whole    = false;    % To be filled below (don't edit this!)
 opts.conskipcount = 0;    % When saving the contrasts, skip how many from 1?
 opts.singlevg = true;     % Make sure that sigle VG will be used if nothing is supplied (this is NOT a "default" setting, and it's not a setting at all, but hard coded. Don't edit it!)
 opts.subjidx  = [];       % Filename of the indices of subjects to keep
+opts.idxout   = false;    % If true, the output of shuffree is not array with permutation indices.
 plm.subjidx   = [];       % Indices of subjects to keep
 
 % These are to be incremented below
@@ -1480,12 +1481,15 @@ if (opts.CCA || opts.PLS) && ~ opts.demean
         '         must be mean centered. Adding option "-demean".%s'],'');
     opts.demean = true;
 end
-if (opts.CCA || opts.PLS) && ~ any(strcmpi(opts.pmethodr,{'beckmann','ridgway'}))
+if (opts.CCA) && ~ any(strcmpi(opts.pmethodr,{'guttman'}))
     warning([ ...
-        'To perform CCA or PLS, the design must be\n' ...
-        '         partitioned using the Beckmann or Ridgway schemes.'...
-        '         Adding the option "-pmethodr Beckmann".%s'],'');
-    opts.pmethodr = 'beckmann';
+        'To perform CCA, the design must be\n' ...
+        '         partitioned using the Guttman scheme.'...
+        '         Adding the option "-pmethodr Guttman".%s'],'');
+    opts.pmethodr = 'guttman';
+end
+if opts.CCA
+    opts.idxout = true; % Set output of shuffree to array of permutation indeces
 end
 if opts.demean && opts.vgdemean && ~opts.pearson && ~opts.CCA && ~opts.PLS
     warning([...
@@ -2357,12 +2361,17 @@ if ~ opts.cmcx
     plm.seq = cell(plm.nM,1);
     for m = 1:plm.nM
         plm.seq{m} = cell(plm.nC(m),1);
-        for c = 1:plm.nC(m)
-            Xtmp = palm_partition(plm.Mset{m}(:,:,1),plm.Cset{m}{c},opts.pmethodp);
+        for c = 1:plm.nC(m)           
+            [Xtmp,Ztmp] = palm_partition(plm.Mset{m}(:,:,1),plm.Cset{m}{c},opts.pmethodp);
+            if opts.CCA
+                % To permute matrix with N-R rows
+                Xtmp   = Xtmp(1:size(Xtmp,1)-rank(Ztmp),:);
+                seqtmp = seqtmp(1:size(Xtmp,1),:);
+            end
             [~,~,plm.seq{m}{c}] = unique(Xtmp,'rows');
             seqtmp(:,j) = plm.seq{m}{c};
             j = j + 1;
-        end
+        end; clear Xtmp Ztmp 
     end
     tmp = sum(diff(seqtmp,1,2).^2,2);
     if (opts.corrcon || opts.npccon || opts.syncperms) && any(tmp(:) ~= 0)
@@ -2389,7 +2398,7 @@ if opts.cmcx % note can't use 'else' here
     end
 end
 
-% Make sure not too many components are asked if CCA or PLS are used
+% Make sure not too many components are asked if  or PLS are used
 if opts.CCA || opts.PLS
     if opts.ccaorplsparm > plm.nY
         error(['Cannot ask more canonical correlations (CCA) or \n', ...
@@ -2405,6 +2414,18 @@ if opts.CCA || opts.PLS
             end
         end
     end
+% %     for m = 1:plm.nM
+% %         for c = 1:plm.nC(m)
+% %             for t = 1:size(plm.Z{m}{c},3)
+% %                 [U,S,~] = svd(plm.Z{m}{c}(:,:,t),'econ');
+% %                 dS   = diag(S);
+% %                 tol  = plm.N * eps(max(dS));
+% %                 rZ   = sum(dS > tol);
+% %                 plm.Z{m}{c}(:,:,t) = U(:,1:rZ);
+% %             end
+% %         end
+% %     end
+    clear U S dS tol rZ;
 end
 
 % Read the exchangeability blocks. If none is specified, all observations
@@ -2747,6 +2768,9 @@ if opts.accel.lowrank
         plm.nsel(1:end) = plm.N*(plm.N+1)/2;
     end
 end
+
+
+
 
 % ==============================================================
 function testrank(plm)

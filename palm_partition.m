@@ -64,8 +64,24 @@ switch lower(meth)
     case 'guttman' % works for evperdat (3D)
         idx   = any(C~=0,2);
         X     = M(:,idx,:);
-        Z     = M(:,~idx,:);
+        Z  = M(:,~idx,:);
         eCm   = vertcat(C(idx,:),C(~idx,:));
+%         disp('size of Ztmp')
+%         size(Ztmp)
+%         pause(5)
+%         % Return only a full rank Z. Note: this will throw error dimension mismatch error in
+%         % evperdat if ranks are different for different voxels (i.e. some
+%         % are highly correlated and others aren't
+%         for t = 1:size(Ztmp,3)
+%             [U,S,~] = svd(Ztmp(:,:,t),'econ');
+%             dS   = diag(S);
+%             tol  = size(Ztmp,1) * eps(max(dS));
+%             rZ   = sum(dS > tol);
+%             Z(:,:,t) = U(:,1:rZ);
+%         end; clear U S dS tol rZ;
+%         disp('size of Z')
+%         size(Z)
+%         pause(5)
         
     case 'beckmann' % works for evperdat (3D)
         Cu    = null(C');
@@ -131,3 +147,4 @@ switch lower(meth)
         error('''%s'' - Unknown partitioning scheme',meth);
 end
 eCx = eCm(1:size(X,2),:);
+
