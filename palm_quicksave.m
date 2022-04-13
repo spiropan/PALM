@@ -131,7 +131,21 @@ if ~ isempty(X)
         % Choose an appropriate mask struct.
         if isempty(y), y = 1;  end
         if opts.npcmod || opts.MV || opts.CCA || opts.PLS || opts.forcemaskinter
-            S = plm.maskinter;
+            % Determine which mask to use based on filename  (ToDO: expand to 3D
+            % input
+            suffix = filename(end-1:end);
+            if strcmp(suffix,'_A')    
+                S = plm.maskA;
+            elseif strcmp(suffix,'_B')
+                S = plm.maskB;
+            elseif strcmp(suffix,'_U')
+                S = plm.maskU;
+            elseif strcmp(suffix,'_V')
+                S = plm.maskV;
+            else
+                S = plm.maskinter;
+            end
+            
         else
             if plm.nmasks == 1
                 S = plm.masks{1};

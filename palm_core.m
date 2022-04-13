@@ -531,19 +531,15 @@ for m = 1:plm.nM,
             end
 
         elseif opts.CCA,
-
-            % Output string, statistic function, and side to test
-            plm.Qname{m}{c} = sprintf('_cca%d',opts.ccaorplsparm);
+            % Output string base, statistic function, and side to test
+            plm.Qname{m}{c} = sprintf('_cca')         
             plm.qfun = @cca;
             plm.mvrev{m}{c} = false;
-
         elseif opts.PLS,
-
             % Output string, statistic function, and side to test
             plm.Qname{m}{c} = sprintf('_pls%d',opts.ccaorplsparm);
             plm.qfun = @simpls;
             plm.mvrev{m}{c} = false;
-
         end
 
         % Effective rank of the matrix nP by Ysiz(y) used for the
@@ -740,55 +736,127 @@ for m = 1:plm.nM,
                 plm.Qz{y}{m}{c}{o} = zeros(plm.N,plm.N-size(plm.Z{y}{m}{c}{o},2),plm.Ysiz(1));
 
                 if isempty(plm.Z{y}{m}{c}{o}),
-                    % plm.Qz{y}{m}{c}{o} = eye(plm.N);
                     plm.Qz{y}{m}{c}{o} = bsxfun(@plus,eye(plm.N),plm.Rz{y}{m}{c}{o});
                 else
                     % HJ here is simplified as in Winkler et al, 2020 (see the Appendix text of the paper)
-                    [Qz,Dz,~] = svd(null(plm.Z{y}{m}{c}{o}'),'econ');
-                    dlmwrite('TEST_palm_Z.txt',plm.Z{y}{m}{c}{o})
-                    dlmwrite('TEST_palm_X.txt',plm.X{y}{m}{c}{o})
-                    plm.Qz{y}{m}{c}{o} = Qz*Dz;
-                    disp('Qz dimensions are:') 
-                    size(plm.Qz{y}{m}{c}{o})
-                    
+                    for t = 1:plm.Ysiz(1),
+                        [Qz,Dz,~] = svd(null(plm.Z{y}{m}{c}{o}(:,:,t)'),'econ');
+                        dlmwrite(['TEST_palm_Z_' int2str(t) '.txt'],plm.Z{y}{m}{c}{o}(:,:,t))
+                        dlmwrite(['TEST_palm_X_' int2str(t) '.txt'],plm.X{y}{m}{c}{o}(:,:,t))
+                        plm.Qz{y}{m}{c}{o}(:,:,t) = Qz*Dz;
+                        disp('Qz dimensions are:') 
+                        size(plm.Qz{y}{m}{c}{o})   
+                    end
+                   
                     % For now make Qw the same as Qz
-                    plm.Qw{y}{m}{c}{o}=plm.Qz{y}{m}{c}{o};
-                    plm.Rz{y}{m}{c}{o} = eye(plm.N) - plm.Z{y}{m}{c}{o}*pinv(plm.Z{y}{m}{c}{o});
+                    plm.Qw{y}{m}{c}{o} = plm.Qz{y}{m}{c}{o};
+                    
                 end
                 
-                if isempty(plm.Z{y}{m}{c}{o}),
-                    plm.Rz{y}{m}{c}{o} = bsxfun(@plus,eye(plm.N),plm.Rz{y}{m}{c}{o});
-                elseif any(strcmpi(opts.rmethod,{ ...
-                        'still-white','freedman-lane',  ...
-                        'kennedy','huh-jhun','dekker'})),
-                    I = eye(plm.N);
-                    for t = 1:plm.Ysiz(1),
-                        plm.Rz{y}{m}{c}{o}(:,:,t) = I - plm.Z{y}{m}{c}{o}(:,:,t)*pinv(plm.Z{y}{m}{c}{o}(:,:,t));
-                    end
-                    clear('I');
-            
-%                     disp('Is not empty?')
-%                     for t = 1:plm.Ysiz(1),
-%                         % HJ here is simplified as in Winkler et al, 2020 (see the Appendix text of the paper)
-%                         [Qs,Ds,~] = svd(null(plm.Z{y}{m}{c}{o}(:,:,t)'),'econ');
-%                         disp('ok here')                       
-%                         Qs = Qs*Ds;
-%                         size(Qs')
-%                         plm.Rz{y}{m}{c}{o}(:,:,t)=Qs*Qs';
-%                     end
-%                     disp('Rz mat is')
-%                     size(plm.Rz{y}{m}{c}{o}(:,:,1))
-%                     opts.rmethod
-%                     plm.Rz{y}{m}{c}{o}(:,:,1);
-                    
-                end
                 % Make the 3D dataset & residualise wrt Z
-                plm.Yq{m}{c} = cat(3,plm.Yset{:});
-                plm.Yq{m}{c} = permute(plm.Yq{m}{c},[1 3 2]);
+%               plm.Yq{m}{c} = cat(3,plm.Yset{:});
+%               plm.Yq{m}{c} = permute(plm.Yq{m}{c},[1 3 2]);
+% 
+%               for t = 1:plm.Ysiz(1),
+%                  plm.Yq{m}{c}(:,:,t) = plm.Rz{y}{m}{c}{o}(:,:,t)*plm.Yq{m}{c}(:,:,t);
+%               end
 
-                for t = 1:plm.Ysiz(1),
-                    plm.Yq{m}{c}(:,:,t) = plm.Rz{y}{m}{c}{o}(:,:,t)*plm.Yq{m}{c}(:,:,t);
-                end
+                % Make the 3D dataset & residualise wrt Z
+                %plm.Yr{m}{c} = cat(3,plm.Yset{:});
+                plm.Y{m}{c} = cat(3,plm.Yset{:});
+                plm.X{y}{m}{c}{o} = permute(plm.X{y}{m}{c}{o},[1 3 2]);
+                % residualize X into new variable Xr with N-R rows
+                %plm.Xr{y}{m}{c}{1} = plm.Qw{y}{m}{c}{1}'*plm.X{y}{m}{c}{1};
+                %dlmwrite('TEST_palm_Xr.txt',plm.Xr{m}{c}{1},'delimiter','\t')
+                
+                disp('size of X is:')
+                size(plm.X{y}{m}{c}{1})
+
+                disp('size of Y is:')
+                size(plm.Y{m}{c})
+
+%                 Y_tmp = permute(plm.Y{m}{c},[1 3 2]);
+%                 disp('size of Y_tmp is:')
+%                 size(Y_tmp)
+%                 pause(5)
+%                 dlmwrite('TEST_palm_Y.txt',Y_tmp,'delimiter','\t')
+                
+                tmpY=zeros(size(plm.Y{m}{c},1)-size(plm.Z{y}{m}{c}{o},2),...
+                    size(plm.Y{m}{c},2),size(plm.Y{m}{c},3));
+                disp('size tmpY:')
+                size(tmpY)
+                
+                tmpX=zeros(size(plm.X{1}{m}{c}{1},1)-size(plm.Z{y}{m}{c}{o},2),...
+                    size(plm.X{1}{m}{c}{1},2),size(plm.X{1}{m}{c}{1},3));
+                disp('size tmpX:')
+                size(tmpX)
+                
+                %for y = 1:plm.nY,
+                for y = 1:size(tmpY,3)
+                %for t = 1:plm.Ysiz(1),
+                    %plm.Yq{m}{c}(:,:,y) = plm.Rz{1}{m}{c}{o}*plm.Yq{m}{c}(:,:,y);
+                    tmpY(:,:,y) = plm.Qz{1}{m}{c}{1}(:,:,y)'*plm.Y{m}{c}(:,:,y);
+                end; y = 1;
+                for y = 1:size(tmpX,3)
+                    tmpX(:,:,y) = plm.Qw{1}{m}{c}{1}(:,:,y)'*plm.X{1}{m}{c}{1}(:,:,y)
+                end; y = 1;
+                
+                %plm.Yq{m}{c} = permute(plm.Yq{m}{c},[1 3 2]);
+                plm.Yr{m}{c} = permute(tmpY,[1 3 2]);
+                plm.Xr{m}{c} = permute(tmpX,[1 3 2]);
+                dlmwrite('TEST_palm_Yr.txt',plm.Yr{m}{c},'delimiter','\t')
+                dlmwrite('TEST_palm_Xr.txt',plm.Xr{m}{c},'delimiter','\t')
+                
+                
+                % Compute initial CCA (Line 19 of algorithm in Winkler et al, 2020)      
+                % initialize some variables 
+                yselq   = true(1,1,plm.Ysiz(1));
+                % Upper case U and V will have N' and N" rows
+                plm.U{m}{c} = zeros(size(plm.Yr{m}{c}));
+                plm.V{m}{c} = zeros(size(plm.Xr{m}{c}));
+                % Smaller case u and v will have N rows
+                plm.u{m}{c} = zeros(size(permute(plm.Y{m}{c},[1 3 2])));
+                plm.v{m}{c} = zeros(size(permute(plm.X{1}{m}{c}{1},[1 3 2])));
+                
+                % Compute U and V
+                % [A,B,r] = cca(Qz*Y,Qw*X,R,S); For now assume R==S
+                
+                for t = find(yselq)',
+                    [A,B,r] = plm.qfun(plm.Qz{1}{m}{c}{1}(:,:,t)*plm.Yr{m}{c}(:,:,t),...
+                        plm.Qw{1}{m}{c}{1}(:,:,t)*plm.Xr{m}{c}(:,:,t),size(plm.Z{1}{m}{c}{1},2),...
+                        size(plm.Z{1}{m}{c}{1},2));
+                    % Change the Xr(:,:,1)
+
+                    % Store A, B, U, V, u and v. A, B, U and V will later be
+                    % written out by default. Add Option like saveglm to save extra
+                    % outputs including u and v with N rows
+                    plm.A{m}{c}(:,:,t) = A;
+                    plm.B{m}{c}(:,:,t) = B;
+                    B'
+                    plm.U{m}{c}(:,:,t) = plm.Yr{m}{c}(:,:,t)*[A null(A')];
+                    plm.V{m}{c}(:,:,t) = plm.Xr{m}{c}(:,:,t)*[B null(B')];
+                    % change to 
+                    plm.u{m}{c}(:,:,t) = plm.Qz{y}{m}{c}{1}(:,:,t)*plm.U{m}{c}(:,:,t);
+                    plm.v{m}{c}(:,:,t) = plm.Qw{y}{m}{c}{1}(:,:,t)*plm.V{m}{c}(:,:,t);
+
+                    % Initialise counter cnt and lW
+                    K = numel(r);
+                    plm.cnt{m}{c}(t,:) = zeros(1,K);
+                    plm.lW{m}{c}(t,:)  = zeros(1,K);
+                    
+                    % Create masks for A, B, U and V outputs
+                    if t==1
+                        plm.maskA = plm.maskinter; plm.maskB = plm.maskinter;
+                        plm.maskU = plm.maskinter; plm.maskV = plm.maskinter;
+                        
+                        % For 2D (csv) inputs
+                        plm.maskA.data = repmat(plm.maskinter.data,size(plm.A{m}{c}(:,:,t),1),1);
+                        plm.maskB.data = repmat(plm.maskinter.data,size(plm.B{m}{c}(:,:,t),1),1);
+                        plm.maskU.data = repmat(plm.maskinter.data,size(plm.u{m}{c}(:,:,t),1),1);
+                        plm.maskV.data = repmat(plm.maskinter.data,size(plm.v{m}{c}(:,:,t),1),1);
+                    end
+                    
+                 end; clear t A B r K               
             end
             clear y o;
 
@@ -987,6 +1055,7 @@ for m = 1:plm.nM,
                     fastmv{m}{c} = @(M,psi,res)fastq(M,psi,res,m,c,plm);
                 end
             end
+            
             if opts.CCA || opts.PLS || opts.accel.noperm,
                 y = 1; o = 1;
                 % Residual forming matrix (Z only). ToDo: Test with rank
@@ -1048,22 +1117,21 @@ for m = 1:plm.nM,
                         plm.Qw{y}{m}{c}{1}*plm.Xr{y}{m}{c}{1},size(plm.Z{y}{m}{c}{o},2),...
                         size(plm.Z{y}{m}{c}{o},2));
 
-                    % Assign U and V
+                    % Store A, B, and U and V
+                    plm.A{m}{c}(:,:,t) = A;
+                    plm.B{m}{c}(:,:,t) = B;              
                     plm.U{m}{c}(:,:,t) = plm.Yr{m}{c}(:,:,t)*[A null(A')];
                     plm.V{m}{c}(:,:,t) = plm.Xr{y}{m}{c}{1}*[B null(B')];
 
-                    % Initialise counter. Come back to preallocate cnt and
-                    % lW
+                    % Initialise counter and lW
                     K = numel(r);
                     plm.cnt{m}{c}(t,:) = zeros(1,K);
                     plm.lW{m}{c}(t,:)  = zeros(1,K);
-                    
-                    % Store the 1st cc for now. COME BACK TO STORE ALL
-                    Q{m}{c}(t) = r(1);
-                 end; clear t A B r   
 
+                 end; clear t A B r   
             end
         end
+        
         % Pick a name to save the files later.
         if opts.pearson || opts.accel.noperm,
             if     plm.rC{m}(c) == 1,
@@ -1217,7 +1285,11 @@ for po = P_outer,
                     % palm_swapfmt.m
                     fid = fopen(sprintf('%s%s%s_permidx.csv',opts.o,plm.mstr{m},plm.cstr{m}{c}),'w');
                     for p = 1:plm.nP{m}(c),
-                        fprintf(fid,'%d,',palm_perm2idx(plm.Pset{p})');
+                        if iscell(plm.Pset)
+                            fprintf(fid,'%d,',palm_perm2idx(plm.Pset{p})');
+                        else
+                            fprintf(fid,'%d,',plm.Pset(:,p));
+                        end
                         fseek(fid,-1,'eof');
                         fprintf(fid,'\n');
                     end
@@ -2078,7 +2150,6 @@ for po = P_outer,
                                 yselq = plm.Qpperm{m}{c} < opts.accel.negbin;
                             end
                         else
-
                             % If the user wants to save the statistic for each
                             % permutation, save it now. This isn't obviously allowed
                             % in negbin mode, as the images are not complete. Also,
@@ -2148,7 +2219,7 @@ for po = P_outer,
                         end
                     end
 
-                elseif opts.CCA || opts.PLS,
+                elseif opts.CCA || opts.PLS, % ToDO: Can get rid of opt.PLS
 
                     % This if is for the negative binomial mode.
                     if dotheMVorCCAorPLS,
@@ -2169,34 +2240,41 @@ for po = P_outer,
 
                         % Compute the CC coefficient
                         y = 1;
-                        if opts.evperdat,
-                            %M=zeros(size(plm.X{y}{m}{c}{1}));
-%                             for t = find(yselq)',
-%                                 M(:,:,t)   = plm.Pset{p}*plm.Rz{y}{m}{c}{1}(:,:,t)*plm.X{y}{m}{c}{1}(:,:,t);
-%                                 disp('X')
-%                                 plm.X{y}{m}{c}{1}(:,:,t)
-%                                 Q{m}{c}(t) = plm.qfun(plm.Yq{m}{c}(:,:,t),M(:,:,t),opts.ccaorplsparm);
-%                             end; clear t
+                        % Set S=R for now
+                        R=size(plm.Z{y}{m}{c}{1},2); S=R;
+                        
+                        if opts.evperdat,                  
                             for t = find(yselq)',
                                 for k=1:length(plm.cnt{m}{c}(t,:)),
                                     % Shuffle just u
-                                    u=plm.Qz{y}{m}{c}{1}*plm.U{m}{c}(plm.Pset(:,p),k:end,t);
-                                    v=plm.Qw{y}{m}{c}{1}*plm.V{m}{c}(:,k:end,t);             
+                                    u=plm.Qz{y}{m}{c}{1}(:,:,t)*plm.U{m}{c}(plm.Pset(:,p),k:end,t);
+                                    v=plm.Qw{y}{m}{c}{1}(:,:,t)*plm.V{m}{c}(:,k:end,t); 
                                     [~,~,r] = plm.qfun(u,v,R,S);
                                     lWtmp = -fliplr(cumsum(fliplr(log(1-r.^2))));
                                     lW(k) = lWtmp(1);
                                     Rtmp(k)=r(1);                                
                                 end
+                                if p == 1
+                                    % save Wilk's statistic
+                                    plm.lW{m}{c}(t,:) = lW;
+                                    %Rtmp2(t,:)=Rtmp;
+                                    %Q{m}{c}(t) = r(1);     
+                                end
+                                % Store canonical correlations to Q
+                                Q{m}{c}(t,:)=Rtmp;
+                                plm.cnt{m}{c}(t,:) = plm.cnt{m}{c}(t,:) + (lW >= plm.lW{m}{c}(t,:));
                                 
-                            end; clear t
+                            end; clear t r u v k lW
+                            dlmwrite('TEST_palm_lW.txt',plm.lW{m}{c},'delimiter','\t')
+                            dlmwrite('TEST_palm_r.txt',Q{m}{c},'delimiter','\t')
+                            dlmwrite('TEST_palm_A.txt',plm.A{m}{c},'delimiter','\t')
                         else
                             % Main loop cca (Line 27-32 of algorithm from
-                            % Winkler et al 2020. Set S=R for now
-                            R=size(plm.Z{y}{m}{c}{o},2); S=R;
+                            % Winkler et al 2020. 
                             
                             for t = find(yselq)',
                                 %Q{m}{c}(t) = plm.qfun(plm.Yq{m}{c}(:,:,t),M,opts.ccaorplsparm);
-                                for k=1:length({m}{c}(t,:)),                                   
+                                for k=1:length(plm.cnt{m}{c}(t,:)),                                   
                                     % Shuffle just u
                                     u=plm.Qz{y}{m}{c}{1}*plm.U{m}{c}(plm.Pset(:,p),k:end,t);
                                     v=plm.Qw{y}{m}{c}{1}*plm.V{m}{c}(:,k:end,t);             
@@ -2206,15 +2284,19 @@ for po = P_outer,
                                     Rtmp(k)=r(1);
                                 end
                                 if p == 1
+                                    % save Wilk's test statistic for
+                                    % unshuffled data
                                     plm.lW{m}{c}(t,:) = lW;
-                                    Rtmp2(t,:)=Rtmp;
-                                    %Q{m}{c}(t) = r(1); 
+                                    %Rtmp2(t,:)=Rtmp;
+                                    %Q{m}{c}(t) = r(1);
                                 end
+                                % store the canonical correlations into Q
+                                Q{m}{c}(t,:)=Rtmp;
                                 plm.cnt{m}{c}(t,:) = plm.cnt{m}{c}(t,:) + (lW >= plm.lW{m}{c}(t,:));
                                 
                             end; clear t r u v k lW
                             dlmwrite('TEST_palm_lW.txt',plm.lW{m}{c},'delimiter','\t')
-                            dlmwrite('TEST_palm_r.txt',Rtmp2,'delimiter','\t')
+                            dlmwrite('TEST_palm_r.txt',Q{m}{c},'delimiter','\t')
                         end
 
                         % Convert to zstat if that was asked
@@ -2225,12 +2307,15 @@ for po = P_outer,
                             end
                         end
 
-                        % Save the CCA statistic
-                        if p == 1,
-                            palm_quicksave(Q{m}{c},0,opts,plm,[],m,c, ...
-                                sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,plm.Qname{m}{c},plm.mstr{m},plm.cstr{m}{c}));
+                        % Save the canonical correlations
+                        if p == 1,                 
+                            for nc=1:opts.ccaorplsparm
+                                ccname = [plm.Qname{m}{c} int2str(nc)];
+                                palm_quicksave(Q{m}{c}(:,nc),0,opts,plm,[],m,c, ...
+                                    sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,plm.mstr{m},plm.cstr{m}{c}));
+                            end; clear ccname nc
                         end
-
+                            
                         % In p = 1, there is no counter being incremented (stays at 0) and the number
                         % of permutations performed stays also at 0. In other words, in the negbin mode,
                         % the first permutation is entirely ignored, so that the Haldane equation can
@@ -2264,9 +2349,15 @@ for po = P_outer,
                             % in negbin mode, as the images are not complete. Also,
                             % this is inside the loop to allow the two-tailed option
                             % not to use to much memory
+                            
                             if opts.saveperms,
-                                palm_quicksave(Q{m}{c},0,opts,plm,[],m,c, ...
-                                    horzcat(sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,plm.Qname{m}{c},plm.mstr{m},plm.cstr{m}{c}),sprintf('_perm%06d',p)));
+                                for nc=1:opts.ccaorplsparm
+                                    ccname = [plm.Qname{m}{c} int2str(nc)];
+                                    palm_quicksave(Q{m}{c}(:,nc),0,opts,plm,[],m,c, ...
+                                        sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,plm.mstr{m},plm.cstr{m}{c},sprintf('_perm%06d',p)));
+                                end; clear ccname
+                                %palm_quicksave(Q{m}{c},0,opts,plm,[],m,c, ...
+                                %    horzcat(sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,plm.Qname{m}{c},plm.mstr{m},plm.cstr{m}{c}),sprintf('_perm%06d',p)));
                             end
 
                             % In the first permutation, keep Q and start the counter.
@@ -2275,7 +2366,8 @@ for po = P_outer,
                                 plm.Qpperm{m}{c} = zeros(size(Q{m}{c}));
                             end
                             plm.Qpperm{m}{c}     = plm.Qpperm{m}{c} + (Q{m}{c} >= plm.Q{m}{c});
-                            plm.Qmax  {m}{c}(p)  = max(Q{m}{c},[],2);
+                   
+                            %plm.Qmax  {m}{c}(p)  = max(Q{m}{c},[],2);
 
                             % Tail and gamma approximations
                             if opts.saveuncorrected && (opts.accel.tail || opts.accel.gamma),
@@ -2333,8 +2425,9 @@ for po = P_outer,
             end
             
             % Output uncorrected p-values for now and check against permcca
-            plm.cnt{m}{c}
-            dlmwrite('TEST_palm_punc.txt',plm.cnt{m}{c}./p,'delimiter','\t')
+            if opts.CCA
+                dlmwrite('TEST_palm_punc.txt',plm.cnt{m}{c}./p,'delimiter','\t')
+            end
             
             if ~ opts.syncperms,
                 ProgressCon = ProgressCon + 1;

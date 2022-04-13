@@ -172,7 +172,7 @@ if opts.saveuncorrected,
             end
         end
     end
-    if opts.MV || opts.CCA || opts.PLS,
+    if opts.MV || opts.PLS 
         for m = 1:plm.nM,
             for c = 1:plm.nC(m),
                 if opts.accel.negbin,
@@ -209,7 +209,15 @@ if opts.saveuncorrected,
                 end
             end
         end
-    end
+    elseif opts.CCA
+        for m = 1:plm.nM,
+            for c = 1:plm.nC(m),
+                if ~ opts.accel.noperm, % the "noperm" case is already treated
+                    plm.punc{m}{c} = plm.cnt{m}{c}/plm.nP{m}(c);
+                end
+            end
+        end
+    end             
 end
 
 % Save uncorrected & FWER-corrected within modality for this contrast.
@@ -1363,7 +1371,7 @@ if ~ opts.npcmod && opts.npccon && opts.corrmod,
 end
 
 % Save the MV results for each contrast
-if opts.MV || opts.CCA || opts.PLS,
+if opts.MV || opts.PLS,
     fprintf('Saving p-values for classical multivariate (uncorrected and corrected within contrast).\n')
     for m = 1:plm.nM,
         for c = 1:plm.nC(m),
@@ -1474,7 +1482,57 @@ if opts.MV || opts.CCA || opts.PLS,
             end
         end
     end
-end
+elseif opts.CCA
+    
+     % canonical weights and coefficients 
+    %for t=1:size(plm.A{m}{c},3)
+%         for nc=1:opts.ccaorplsparm
+%             ccname = [plm.Qname{m}{c} int2str(nc)];
+%             palm_quicksave(shiftdim(plm.A{m}{c}(:,nc,:),2),1,opts,plm,[],[],[], ...
+%                 sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_A',plm.mstr{m},plm.cstr{m}{c}));  
+%         end
+    %end
+    % cca r p-value
+    for nc=1:opts.ccaorplsparm
+        ccname = [plm.Qname{m}{c} int2str(nc)];
+        % Uncorrected p-values
+        if opts.saveuncorrected,
+            palm_quicksave(plm.punc{m}{c}(:,nc),1,opts,plm,[],[],[], ...
+                sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_uncp',plm.mstr{m},plm.cstr{m}{c}));
+        end
+        
+        % Save out A, B, U and V (ToDo: replace 1st line with reshape to make faster)
+        tmp=[]; for t=1:size(plm.A{m}{c},3), tmp=[tmp plm.A{m}{c}(:,nc,t)]; end
+        palm_quicksave(tmp,1,opts,plm,[],[],[], ...
+            sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_A',plm.mstr{m},plm.cstr{m}{c}));  
+
+        tmp=[]; for t=1:size(plm.B{m}{c},3), tmp=[tmp plm.B{m}{c}(:,nc,t)]; end
+        palm_quicksave(tmp,1,opts,plm,[],[],[], ...
+            sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_B',plm.mstr{m},plm.cstr{m}{c}));  
+        
+        tmp=[]; for t=1:size(plm.u{m}{c},3), tmp=[tmp plm.u{m}{c}(:,nc,t)]; end
+        palm_quicksave(tmp,1,opts,plm,[],[],[], ...
+            sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_U',plm.mstr{m},plm.cstr{m}{c}));  
+
+        tmp=[]; for t=1:size(plm.v{m}{c},3), tmp=[tmp plm.v{m}{c}(:,nc,t)]; end
+        palm_quicksave(tmp,1,opts,plm,[],[],[], ...
+            sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_V',plm.mstr{m},plm.cstr{m}{c})); 
+        
+        % Corrected p-values
+        palm_quicksave(cummax(plm.punc{m}{c}(:,nc)),1,opts,plm,[],[],[], ...
+            sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_fwep',plm.mstr{m},plm.cstr{m}{c}));
+        
+
+%         palm_quicksave(plm.B{m}{c}(:,nc),1,opts,plm,[],[],[], ...
+%             sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_B',plm.mstr{m},plm.cstr{m}{c}));
+%         
+%         palm_quicksave(plm.U{m}{c}(:,nc),1,opts,plm,[],[],[], ...
+%             sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_U',plm.mstr{m},plm.cstr{m}{c}));
+%         
+%         palm_quicksave(plm.V{m}{c}(:,nc),1,opts,plm,[],[],[], ...
+%             sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,'_V',plm.mstr{m},plm.cstr{m}{c}));
+    end; clear ccname nc
+end   
 
 % Save FWER corrected across contrasts for MV.
 if ( opts.MV || opts.CCA || opts.PLS) && opts.corrcon,

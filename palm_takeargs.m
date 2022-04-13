@@ -547,6 +547,9 @@ while a <= narginx
             opts.saveglm = true;
             a = a + 1;
             
+            
+                
+            
         case {'-savecdf','-save1-p'} % basic
             
             % Save 1-p values (CDF) instead of the P-values
@@ -1868,7 +1871,7 @@ clear('newmask');
 if opts.npcmod || opts.MV || opts.CCA || opts.PLS || opts.forcemaskinter
     if plm.nmasks > 1
         
-        % If there is one mask per modality, make an instersection mask.
+        % If there is one mask per modality, make an intersection mask.
         maskinter = true(size(plm.masks{1}.data));
         for m = 1:plm.nmasks
             maskinter = maskinter & plm.masks{m}.data;
@@ -2398,7 +2401,7 @@ if opts.cmcx % note can't use 'else' here
     end
 end
 
-% Make sure not too many components are asked if  or PLS are used
+% Make sure not too many components are asked if CCA or PLS are used
 if opts.CCA || opts.PLS
     if opts.ccaorplsparm > plm.nY
         error(['Cannot ask more canonical correlations (CCA) or \n', ...
