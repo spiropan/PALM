@@ -832,7 +832,7 @@ for m = 1:plm.nM,
                     % outputs including u and v with N rows
                     plm.A{m}{c}(:,:,t) = A;
                     plm.B{m}{c}(:,:,t) = B;
-                    B'
+                    
                     plm.U{m}{c}(:,:,t) = plm.Yr{m}{c}(:,:,t)*[A null(A')];
                     plm.V{m}{c}(:,:,t) = plm.Xr{m}{c}(:,:,t)*[B null(B')];
                     % change to 
@@ -1123,8 +1123,10 @@ for m = 1:plm.nM,
                     plm.U{m}{c}(:,:,t) = plm.Yr{m}{c}(:,:,t)*[A null(A')];
                     plm.V{m}{c}(:,:,t) = plm.Xr{y}{m}{c}{1}*[B null(B')];
 
-                    % Initialise counter and lW
-                    K = numel(r);
+                    % Initialise counter and lW. Test only the requested
+                    % number of canonical correlations (not all of them).
+                    % K = numel(r);
+                    K = plm.opts.ccaorplsparm; 
                     plm.cnt{m}{c}(t,:) = zeros(1,K);
                     plm.lW{m}{c}(t,:)  = zeros(1,K);
 
@@ -2310,7 +2312,11 @@ for po = P_outer,
                         % Save the canonical correlations
                         if p == 1,                 
                             for nc=1:opts.ccaorplsparm
-                                ccname = [plm.Qname{m}{c} int2str(nc)];
+                                if opts.ccaorplsparm > 99
+                                    ccname = [plm.Qname{m}{c} num2str(nc,'%03d')];
+                                else
+                                    ccname = [plm.Qname{m}{c} num2str(nc,'%02d')];
+                                end
                                 palm_quicksave(Q{m}{c}(:,nc),0,opts,plm,[],m,c, ...
                                     sprintf('%s',opts.o,plm.Ykindstr{1},plm.mvstr,ccname,plm.mstr{m},plm.cstr{m}{c}));
                             end; clear ccname nc

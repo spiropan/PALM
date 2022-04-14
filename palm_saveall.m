@@ -1494,7 +1494,12 @@ elseif opts.CCA
     %end
     % cca r p-value
     for nc=1:opts.ccaorplsparm
-        ccname = [plm.Qname{m}{c} int2str(nc)];
+        if opts.ccaorplsparm > 99
+            ccname = [plm.Qname{m}{c} num2str(nc,'%03d')];
+        else
+            ccname = [plm.Qname{m}{c} num2str(nc,'%02d')];
+        end
+       
         % Uncorrected p-values
         if opts.saveuncorrected,
             palm_quicksave(plm.punc{m}{c}(:,nc),1,opts,plm,[],[],[], ...
