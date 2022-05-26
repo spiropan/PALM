@@ -1,5 +1,5 @@
-function palm_saveall(plm,opts)
-% Save most of the outputs from PALM.
+function palm_saveglm(plm,opts)
+% Save most of the outputs from PALM GLM analysis. 
 %
 % _____________________________________
 % Anderson M. Winkler

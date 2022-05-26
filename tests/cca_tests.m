@@ -13,7 +13,7 @@ new_data=0; run_permcca=1; % COME BACK AND RUN permcca with evperdat case
 test='B';
 switch test
     case 'A'
-        % Create data 
+        % Create data
         % create design with:
         % EV1: dummy (for imaging_data1, i.e., the first -evperdat)
         % EV2: dummy (for imaging_data2, i.e., the second -evperdat)
@@ -34,10 +34,10 @@ switch test
             Y5 = randn(N,nV); csvwrite('imaging_data5.csv',Y5);
             Y6 = randn(N,nV); csvwrite('imaging_data6.csv',Y6);
             Y7 = randn(N,nV); csvwrite('imaging_data7.csv',Y7);
-
+            
             % create contrast files
             C=eye(7); csvwrite('tcontrasts.csv',C);
-            C = [1 1 1 1 0 0 0]; % First 4 vars are of interest 
+            C = [1 1 1 1 0 0 0]; % First 4 vars are of interest
             csvwrite('fcontrasts.csv',C)
         end
         
@@ -45,32 +45,32 @@ switch test
         % Y is imaging data, X is also imaging data, using csv files
         tic
         palm -i imaging_data1.csv -i imaging_data2.csv -i imaging_data3.csv -d design.csv -nounivariate...
-            -n 50 -t tcontrasts.csv -f fcontrasts.csv -mv CCA 2 -fonly -demean -o test_cca... 
+            -n 50 -t tcontrasts.csv -f fcontrasts.csv -mv CCA 2 -fonly -demean -o test_cca...
             -evperdat imaging_data4.csv 1 1 -evperdat imaging_data5.csv 2 1...
             -evperdat imaging_data6.csv 3 1 -evperdat imaging_data7.csv 4 1...
-       
+            
         palm_time = toc
         
         % save out of the files for all tested canonical correlations. For
-        % CCA argument the number will be the number of corrs tested. 
+        % CCA argument the number will be the number of corrs tested.
         % in test_cca_data_cca1 pad the number with zeros depending on size of  01, 02, 03
-    
+        
         if run_permcca
             clear rmat wmat
-            M=importdata('design.csv'); 
-            Y1=importdata('imaging_data1.csv'); Y2=importdata('imaging_data2.csv'); 
-            Y3=importdata('imaging_data3.csv'); Y4=importdata('imaging_data4.csv'); 
+            M=importdata('design.csv');
+            Y1=importdata('imaging_data1.csv'); Y2=importdata('imaging_data2.csv');
+            Y3=importdata('imaging_data3.csv'); Y4=importdata('imaging_data4.csv');
             Y5=importdata('imaging_data5.csv'); Y6=importdata('imaging_data6.csv');
             Y7=importdata('imaging_data7.csv');
             
             Z = M(:,[5:7]); wmat=[]; Amat=[]; Bmat=[]; Umat=[]; Vmat=[];
             tic
             for i=1:nV
-              %[pfwer,r(i),A,B,U,V] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)],X,20,Z,W,Sel,partial,Pset)
-              [punc(i,:),r{i},A{i},B{i},U{i},V{i},W{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], [Y4(:,i) Y5(:,i) Y6(:,i) Y7(:,i)], 50, Z);
-              % Store and write out outputs
-              rmat(i,:)=r{i}; Wmat(i,:)=W{i}; Amat=[Amat A{i}]; Bmat=[Bmat B{i}];
-              Umat=[Umat U{i}]; Vmat=[Vmat V{i}];
+                %[pfwer,r(i),A,B,U,V] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)],X,20,Z,W,Sel,partial,Pset)
+                [punc(i,:),r{i},A{i},B{i},U{i},V{i},W{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], [Y4(:,i) Y5(:,i) Y6(:,i) Y7(:,i)], 50, Z);
+                % Store and write out outputs
+                rmat(i,:)=r{i}; Wmat(i,:)=W{i}; Amat=[Amat A{i}]; Bmat=[Bmat B{i}];
+                Umat=[Umat U{i}]; Vmat=[Vmat V{i}];
             end
             permcca_time = toc
             
@@ -88,17 +88,17 @@ switch test
         if run_permcca
             disp(['permcca took ' num2str(permcca_time,'%0.2f') ' seconds'])
         end
-    
+        
     case 'B'
         if new_data
             M = [randn(N,1) randn(N,1) rand(N,1) rand(N,1)>.5];
             csvwrite('design.csv',M);
-
+            
             % create imaging data cvs files
             Y1 = randn(N,nV); csvwrite('imaging_data1.csv',Y1);
             Y2 = randn(N,nV); csvwrite('imaging_data2.csv',Y2);
             Y3 = randn(N,nV); csvwrite('imaging_data3.csv',Y3);
-
+            
             % create contrast files
             C=eye(4); csvwrite('tcontrasts.csv',C);
             C = [1 1 0 0]; % First two vars are of interest
@@ -106,24 +106,24 @@ switch test
         end
         
         % Call PALM
-        % Y is imaging data, X is clinical variables, using csv files 
+        % Y is imaging data, X is clinical variables, using csv files
         palm -i imaging_data1.csv -i imaging_data2.csv -i imaging_data3.csv -d design.csv -nounivariate...
-        -n 50 -t tcontrasts.csv -f fcontrasts.csv -mv CCA 1 -fonly -o test_cca  
-    
+            -n 50 -t tcontrasts.csv -f fcontrasts.csv -mv CCA 1 -fonly -o test_cca
+        
         if run_permcca
             M=importdata('design.csv'); Y1=importdata('imaging_data1.csv');
             Y2=importdata('imaging_data2.csv'); Y3=importdata('imaging_data3.csv');
-
+            
             X = M(:,[1:2]); Z = M(:,[3:4]); wmat=[]; Amat=[]; Bmat=[]; Umat=[]; Vmat=[]; punc=[]; rmat=[];
             for i=1:nV
-              %[pfwer,r(i),A,B,U,V] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)],X,20,Z,W,Sel,partial,Pset)
-              [punc(i,:),r{i},A{i},B{i},U{i},V{i},W{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], X, 50, Z);
-              
-              % Store and write out outputs
-              rmat(i,:)=r{i}; Wmat(i,:)=W{i}; Amat=[Amat A{i}]; Bmat=[Bmat B{i}];
-              Umat=[Umat U{i}]; Vmat=[Vmat V{i}];
+                %[pfwer,r(i),A,B,U,V] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)],X,20,Z,W,Sel,partial,Pset)
+                [punc(i,:),r{i},A{i},B{i},U{i},V{i},W{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], X, 50, Z);
+                
+                % Store and write out outputs
+                rmat(i,:)=r{i}; Wmat(i,:)=W{i}; Amat=[Amat A{i}]; Bmat=[Bmat B{i}];
+                Umat=[Umat U{i}]; Vmat=[Vmat V{i}];
             end
-
+            
             disp('Unc p-values:')
             dlmwrite('TEST_permcca_punc.txt',punc,'delimiter','\t')
             dlmwrite('TEST_permcca_r.txt',rmat,'delimiter','\t')
@@ -172,23 +172,52 @@ end
 % ***** Functions that need to be written (this new function can return to palm_takeargs.m)
 % 
 % To have the CCA functions invoked, we'd call something like this:
-% palm -cca file1.ext file2.ext  -transposedata -elementwise -o prefix -n 1000 -logp -eb EB.csv -cmcx -cmcp -ise -ee -nuisance nuisance1.ext nuisance2.ext  -testloadings
-% 
+% palm -cca file1.ext file2.ext -transposedata -elementwise -o prefix -n 1000 -logp -eb EB.csv -cmcx -cmcp -ise -ee -nuisance nuisance1.ext nuisance2.ext  -testloadings
+
 % For the '-testloadings' option (to be created), see 'permloads.m' on PermCCA on Github. ?
+
+% ------ For vertexwise CCA -------------------
+% palm -y fileY1.ext -y fileY2.ext -y fileY3.ext ... -x fileX1.ext -x fileX2.ext -x fileX3.ext ... -cca -z fileZ1.ext -z fileZ2.ext ... -w fileW1.ext -w fileW2.ext ... -semipartial [left,right, y,x] -theil selection.csv ... -n 10000 -o prefix -ee -ise -logp
+% Each input given to -y, -x, -z, and -w, is a 4D image file, or a 2D csv file. The 4th dim (or the columns for .csv) form the variables that go in each of the internal Y, X, Z, and W.
+
+% The -semipartial, if supplied, will use Z only with the side specified (left/y or right/x). If -semipartial is not used, then Z is used for both sides (partial CCA). This -semipartial option should not work if any -w is supplied (produce an error). Have synonym to -semipartial to be called -part.
+% -theil is to provide a selection matrix. If -theil is used without the selection, the code should try an "optimal" choice based on observations that are seldom permuted (if EB are provided) or simply make a random choice (see PermCCA.m)
+
+% ------- For spatial CCA (without transposition) --------
+% palm -y fileY.ext -x fileX.ext -z fileZ1.csv -zperdat fileZ2.ext -w fileW1.csv -w fileW2.ext
+% Y_{NxP} ~ X_{NxQ}
+
+% If N are subjects and P and Q are image features (like voxels, can be images of different resolutions), 
+% then spatial CCA will give mixtures of latent features that are maximally correlated, even if located in 
+% non-overlapping parts of the brain.
+
+% If -z is provided, it's treated as nuisance for all columns of Y. If -zperdat is provided, it's 
+% treated as a nuisance for each column of Y (like -evperdat). Same goes for -w/-wperdat. If -zperdat 
+% or -wperdat are used, we must also use -theil, not the default (Huh-Jhun). The option -semipartial is 
+% as above.
+
+% ----- For spatial CCA (with transposition) ------------
+% If we transpose, then:
+% Y_{PxN} ~ X_{QxN}
+
+% P and Q must be identical. The N for each side can be different. Here CCA will give fuzzy sets of 
+% subjects ("clusters") who share a similar spatial pattern across the two sides.
+
+% Inputs similar to without transposition, but with the option -transposedata. All else the same.
 
 %% palm_core.m pseudocode
 
 % [opts,plm] = palm_takeargs(varargin{:}); <- current palm_takeargs lines 1-1179, 
-%                                             and any others lines common to GLM and CCA, 
-%                                             add case for -CCA to parse args as above                                             arguments as above
-
+%                                             and any others lines common to both GLM and CCA, 
+%                                             including reading, organizing
+%                                             masks, add case for -CCA to parse args as above
 % if opts.CCA
 %    [opts,plm] = palm_prepcca(opts,plm)   <- (new code)
 %    [opts,plm] = palm_cca(opts,plm)       <- (new code)
 %    palm_savecca(opts,plm)                <- (new code)
 % else
 %    [opts,plm] = palm_prepglm(opts,plm)   <- current palm_takeargs lines 1180-1553, 
-%                                                     palm_core.m   lines 35-990 (remove lines about CCA and PLS
+%                                                     palm_core.m   lines 35-990 (remove lines about CCA and PLS)
 %    [opts,plm] = palm_glm(opts,plm)       <- current palm_core.m   lines 990-2456 & 2478-end
 %    palm_saveglm(opts,plm)                <- current palm_saveall.m
 % end
