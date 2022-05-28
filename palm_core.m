@@ -34,7 +34,7 @@ ticI = tic;
 tocI = toc(ticI);
 fprintf('Elapsed time parsing inputs: ~ %g seconds.\n',tocI);  
     
-if opts.CCA
+if opts.cca.do
     [opts,plm] = palm_prepcca(opts,plm)   % <- (new code)
     [opts,plm] = palm_cca(opts,plm)       % <- (new code)
     palm_savecca(opts,plm)                % <- (new code)
@@ -48,13 +48,11 @@ else
     ticS = tic;
     palm_saveglm(plm,opts);
     tocS = toc(ticS);                     
-    
     fprintf('Elapsed time generating and saving results: ~ %g seconds.\n',tocS);
-    fprintf('Overall elapsed time: ~ %g seconds.\n',tocI+tocP+tocS);
-    csvwrite(sprintf('%s_elapsed.csv',opts.o),[tocI tocP tocS]);
-                  
 end
 
-% Finished.
+% Finished. :-)
+fprintf('Overall elapsed time: ~ %g seconds.\n',tocI+tocP+tocS);
+csvwrite(sprintf('%s_elapsed.csv',opts.o),[tocI tocP tocS]);              
 fprintf('PALM finished at %s.\n',datestr(now));
-% Finished! :-)
+

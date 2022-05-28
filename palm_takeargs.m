@@ -57,6 +57,10 @@ end
 % Number of input images/masks/surfaces
 % These are NOT meant to be edited.
 Ni     = sum(strcmp(vararginx,'-i'));        % number of data inputs
+Nx     = sum(strcmp(vararginx,'-x'));        % number of data inputs (CCA left side)
+Ny     = sum(strcmp(vararginx,'-y'));        % number of data inputs (CCA right side)
+Nz     = sum(strcmp(vararginx,'-z'));        % number of nuisance inputs (CCA left side or both)
+Nw     = sum(strcmp(vararginx,'-w'));        % number of nuisance inputs (CCA right side)
 Nm     = sum(strcmp(vararginx,'-m'));        % number of masks
 Ns     = sum(strcmp(vararginx,'-s'));        % number of surfaces
 Nd     = sum(strcmp(vararginx,'-d'));        % number of design files
@@ -67,6 +71,10 @@ Nf     = sum(strcmp(vararginx,'-f'));        % number of F-test files
 Ncon   = sum(strcmp(vararginx,'-con'));      % number of contrast files (t or F, mset format)
 Nevd   = sum(strcmp(vararginx,'-evperdat')); % number of EV per datum inputs
 opts.i     = cell(Ni,1);   % Input files (to constitute Y later)
+opts.x     = cell(Nx,1);   % Input files (to constitute X for CCA later)
+opts.y     = cell(Ny,1);   % Input files (to constitute Y for CCA later)
+opts.z     = cell(Nz,1);   % Input files (to constitute Z for CCA later)
+opts.w     = cell(Nw,1);   % Input files (to constitute W for CCA later)
 opts.m     = cell(Nm,1);   % Mask file(s)
 opts.s     = cell(Ns,1);   % Surface file(s)
 opts.sa    = cell(Ns,1);   % Area file(s) or weight(s)
@@ -93,6 +101,7 @@ i = 1; m = 1; d = 1;
 t = 1; s = 1;
 con = 1; ev = 1;
 imiss = 1; dmiss = 1;
+x = 1; y = 1; z = 1; w = 1; % For CCA
 
 % Remove trailing empty arguments. This is useful for some Octave versions.
 while numel(vararginx) > 0 && isempty(vararginx{1})
@@ -117,6 +126,103 @@ while a <= narginx
             i = i + 1;
             a = a + 2;
             
+            % If -i is provided, set CCA, PLS, CACIC to false
+            opts.cca.do   = false;
+            opts.pls.do   = false;
+            opts.cacic.do = false; 
+            
+        case '-cca' % advanced
+            
+            % Doing CCA?
+            opts.cca.do   = true;
+            opts.pls.do   = false;
+            opts.cacic.do = false;
+            a = a + 1;
+       
+        case '-pls' % advanced
+            
+            % Doing PLS?
+            opts.cca.do   = false;
+            opts.pls.do   = true;
+            opts.cacic.do = false;
+            a = a + 1;
+            
+        case '-cacic' % advanced
+            
+            % Doing cacic?
+            opts.cca.do   = false;
+            opts.pls.do   = false;
+            opts.cacic.do = true;
+            a = a + 1;
+            
+        case '-x' % basic
+            
+            % Get the filenames for X (CCA)
+            opts.x{i} = vararginx{a+1};
+            x = x + 1;
+            a = a + 2;
+            
+        case '-y' % basic
+            
+            % Get the filenames for the data.
+            opts.y{i} = vararginx{a+1};
+            y = y + 1;
+            a = a + 2;   
+            
+        case '-z' % basic
+            
+            % Get the filenames for nuisance (CCA left side or both)
+            opts.z{i} = vararginx{a+1};
+            z = z + 1;
+            a = a + 2;
+            
+        case '-w' % basic
+            
+            % Get the filenames for nuisance (CCA right side)
+            opts.w{i} = vararginx{a+1};
+            w = w + 1;
+            a = a + 2;
+            
+        case {'-semipartial','-part'} % advanced
+            
+            if nargin == a || nargin > a && strcmp(vararginx{a+1}(1),'-')
+                error('If using semipartial CCA, you must specify a side to adjust (i.e. left or right)');
+               
+            elseif nargin > a
+                
+                % Which side to adjust for nuisance variables Z?
+                sidelist = {            ...
+                    'left',             ...
+                    'y',                ...
+                    'right',            ...
+                    'x'};
+                
+                sideidx = strcmpi(vararginx{a+1},sidelist);
+                
+                % Check if a valid side is specified, and raise error if not
+                if ~any(sideidx)
+                    error('For semipartial CCA, specified side must be either left (y), or right (x)');
+                elseif strcmpi(vararginx{a+1},'left') || strcmpi(vararginx{a+1},'y')                 
+                    opts.cca.semipartial.side  = 'left';
+                    a = a + 2;
+                    
+                elseif strcmpi(vararginx{a+1},'right') || strcmpi(vararginx{a+1},'x')                
+                    opts.cca.semipartial.side  = 'right';
+                    a = a + 2;
+                end
+            end
+       
+        case '-theil' % advanced
+            
+            if nargin == a || nargin > a && strcmp(vararginx{a+1}(1),'-')
+                opts.cca.theil.selectionmatrix=false;
+                a = a + 1;
+            else
+                % Get the filename for the selection matrix (csv file)
+                opts.cca.theil.selectionmatrix{1} = vararginx{a+1};
+                a = a + 2;
+            end
+                 
         case '-m' % basic
             
             % Get the filenames for the masks, if any.
@@ -1181,8 +1287,18 @@ end
 % Check for the existence of other programs for input/output
 palm_checkprogs;
 
-if Ni == 0
+% Run basic checks for input data
+if ~opts.cca.do && Ni == 0
     error('Missing input data (missing "-i").');
+elseif opts.cca.do && Nx == 0
+    error('Missing input data (missing "-x" for cca).');
+elseif opts.cca.do && Ny == 0
+    error('Missing input data (missing "-y" for cca).');
+end
+
+% For CCA, the -semipartial option should not work if any -w is supplied
+if isfield(opts.cca,'semipartial') && isfield(opts,'w') 
+    error('Option -semipartial should not be used if supplying w.');
 end
 
 % Make sure the NPC options make sense

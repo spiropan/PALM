@@ -10,7 +10,7 @@ new_data=0; run_permcca=1; % COME BACK AND RUN permcca with evperdat case
 % Test cases: A - Y is imaging, X is also imaging (evperdat)
 %             B - Y is imaging, X is clinical variables
 
-test='B';
+test='A';
 switch test
     case 'A'
         % Create data
@@ -44,10 +44,14 @@ switch test
         % Call PALM
         % Y is imaging data, X is also imaging data, using csv files
         tic
-        palm -i imaging_data1.csv -i imaging_data2.csv -i imaging_data3.csv -d design.csv -nounivariate...
-            -n 50 -t tcontrasts.csv -f fcontrasts.csv -mv CCA 2 -fonly -demean -o test_cca...
-            -evperdat imaging_data4.csv 1 1 -evperdat imaging_data5.csv 2 1...
-            -evperdat imaging_data6.csv 3 1 -evperdat imaging_data7.csv 4 1...
+%         palm -i imaging_data1.csv -i imaging_data2.csv -i imaging_data3.csv -d design.csv -nounivariate...
+%             -n 50 -t tcontrasts.csv -f fcontrasts.csv -mv CCA 2 -fonly -demean -o test_cca...
+%             -evperdat imaging_data4.csv 1 1 -evperdat imaging_data5.csv 2 1...
+%             -evperdat imaging_data6.csv 3 1 -evperdat imaging_data7.csv 4 1...
+            
+        palm -y imaging_data1.csv -y imaging_data2.csv -y imaging_data3.csv...
+            -n 50 -demean -o test_cca -semipartial x -cca...
+            -x imaging_data4.csv -x imaging_data5.csv -x imaging_data6.csv -x imaging_data7.csv...
             
         palm_time = toc
         
@@ -177,11 +181,16 @@ end
 % For the '-testloadings' option (to be created), see 'permloads.m' on PermCCA on Github. ?
 
 % ------ For vertexwise CCA -------------------
-% palm -y fileY1.ext -y fileY2.ext -y fileY3.ext ... -x fileX1.ext -x fileX2.ext -x fileX3.ext ... -cca -z fileZ1.ext -z fileZ2.ext ... -w fileW1.ext -w fileW2.ext ... -semipartial [left,right, y,x] -theil selection.csv ... -n 10000 -o prefix -ee -ise -logp
+% palm -y fileY1.ext -y fileY2.ext -y fileY3.ext ... -x fileX1.ext -x fileX2.ext -x fileX3.ext ... -cca -z fileZ1.ext -z fileZ2.ext ... -w fileW1.ext -w fileW2.ext ... -semipartial [left,right,y,x] -theil selection.csv ... -n 10000 -o prefix -ee -ise -logp
 % Each input given to -y, -x, -z, and -w, is a 4D image file, or a 2D csv file. The 4th dim (or the columns for .csv) form the variables that go in each of the internal Y, X, Z, and W.
 
-% The -semipartial, if supplied, will use Z only with the side specified (left/y or right/x). If -semipartial is not used, then Z is used for both sides (partial CCA). This -semipartial option should not work if any -w is supplied (produce an error). Have synonym to -semipartial to be called -part.
-% -theil is to provide a selection matrix. If -theil is used without the selection, the code should try an "optimal" choice based on observations that are seldom permuted (if EB are provided) or simply make a random choice (see PermCCA.m)
+% The -semipartial, if supplied, will use Z only with the side specified (left/y or right/x). 
+% If -semipartial is not used, then Z is used for both sides (partial CCA). This -semipartial 
+% option should not work if any -w is supplied (produce an error). Have synonym to -semipartial to be called -part.
+
+% -theil is to provide a selection matrix. If -theil is used without the selection, the code should try an 
+% "optimal" choice based on observations that are seldom permuted (if EB are provided) or simply make 
+% a random choice (see PermCCA.m)
 
 % ------- For spatial CCA (without transposition) --------
 % palm -y fileY.ext -x fileX.ext -z fileZ1.csv -zperdat fileZ2.ext -w fileW1.csv -w fileW2.ext
