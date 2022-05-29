@@ -36,10 +36,11 @@ fprintf('Elapsed time parsing inputs: ~ %g seconds.\n',tocI);
     
 if opts.cca.do
     [opts,plm] = palm_prepcca(opts,plm)   % <- (new code)
-    [opts,plm] = palm_cca(opts,plm)       % <- (new code)
+    [opts,plm] = palm_permcca(opts,plm)   % <- (new code)
     palm_savecca(opts,plm)                % <- (new code)
 else
     ticP = tic;
+    [opts,plm] = palm_prepglm(opts,plm);
     [opts,plm] = palm_glm(opts,plm);      
     tocP = toc(ticP);
     fprintf('Elapsed time with permutations: ~ %g seconds.\n',tocP);
