@@ -25,39 +25,16 @@ function [opts,plm] = palm_prepglm(opts,plm)
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.
 % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+% Get sizes and number of various inputs from output of palm_takeargs
 Ni     = size(opts.i,1);    % number of data inputs
 Nm     = size(opts.m,1);    % number of masks
 Ns     = size(opts.s,1);    % number of surfaces
 Nd     = size(opts.d,1);    % number of design files
-Nimiss = sum(strcmp(vararginx,'-imiss'));    % number of missing indicators for inputs
-Ndmiss = sum(strcmp(vararginx,'-dmiss'));    % number of missing indicators for designs
-Nt     = sum(strcmp(vararginx,'-t'));        % number of t-contrast files
-Nf     = sum(strcmp(vararginx,'-f'));        % number of F-test files
-Ncon   = sum(strcmp(vararginx,'-con'));      % number of contrast files (t or F, mset format)
-Nevd   = sum(strcmp(vararginx,'-evperdat')); % number of EV per datum inputs
-
-opts.w     = cell(Nw,1);   % Input files (to constitute W for CCA later)
-opts.m     = cell(Nm,1);   % Mask file(s)
-opts.s     = cell(Ns,1);   % Surface file(s)
-opts.sa    = cell(Ns,1);   % Area file(s) or weight(s)
-opts.d     = cell(Nd,1);   % Design file(s)
-opts.imiss = cell(Nd,1);   % Design file(s)
-opts.dmiss = cell(Nd,1);   % Design file(s)
-opts.t     = cell(Nt,1);   % t contrast file(s)
-opts.f     = opts.t;       % F contrast file(s)
-opts.Ccon  = cell(Ncon,1); % Contrast file(s) (t or F, mset format)
-opts.Dcon  = cell(Ncon,1); % Contrast file(s) (multivariate, mset format)
-opts.eb       = [];       % File with definition of exchangeability blocks
-opts.vg       = [];       % File with definition of variance groups
-opts.EE       = false;    % To be filled below (don't edit this!)
-opts.ISE      = false;    % To be filled below (don't edit this!)
-opts.within   = false;    % To be filled below (don't edit this!)
-opts.whole    = false;    % To be filled below (don't edit this!)
-opts.conskipcount = 0;    % When saving the contrasts, skip how many from 1?
-opts.singlevg = true;     % Make sure that sigle VG will be used if nothing is supplied (this is NOT a "default" setting, and it's not a setting at all, but hard coded. Don't edit it!)
-opts.subjidx  = [];       % Filename of the indices of subjects to keep
-plm.subjidx   = [];       % Indices of subjects to keep
-
+Ncon   = size(opts.Ccon,1); % number of contrast files (t or F, mset format)
+Nt     = size(opts.t,1);    % number of t contrast files
+Nf     = size(opts.f,1);    % number of f contrast files
+Nimiss = opts.Nimiss;       % number of missing indicators for inputs
+Ndmiss = opts.Ndmiss;       % number of missing indicators for designs
 
 % Read and organise the data.
 plm.Yset     = cell(Ni,1);  % Regressands (Y)
@@ -191,8 +168,7 @@ if opts.evperdat
             'Some EV per datum have been defined for the same\n'...
             'position in the same design matrices.%s'],'');
     end
-    plm.EVset  = cell(Nevd,1);
-    plm.nEVdat = Nevd;
+    plm.EVset  = cell(plm.nEVdat,1);
     
     % If there's one design per input, use the same masks as
     % those of the input files. Otherwise, create them.

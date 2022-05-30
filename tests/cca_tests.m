@@ -3,9 +3,9 @@ addpath ../../permcca
 
 N = 50;
 nV = 8;
-
+rng(1)
 delete TEST_*.txt test_cca_dat_cca*.csv
-new_data=0; run_permcca=1; % COME BACK AND RUN permcca with evperdat case
+new_data=1; run_permcca=1; % COME BACK AND RUN permcca with evperdat case
 
 % Test cases: A - Y is imaging, X is also imaging (evperdat)
 %             B - Y is imaging, X is clinical variables
@@ -24,8 +24,7 @@ switch test
         % EV7: sex     -  nuisance regressor
         % save the above as design.csv
         if new_data
-            M = [randn(N,1) randn(N,1) rand(N,1) randn(N,1) randn(N,1) randn(N,1) rand(N,1)>.5];
-            csvwrite('design.csv',M);
+            
             % create imaging data cvs files
             Y1 = randn(N,nV); csvwrite('imaging_data1.csv',Y1);
             Y2 = randn(N,nV); csvwrite('imaging_data2.csv',Y2);
@@ -35,10 +34,10 @@ switch test
             Y6 = randn(N,nV); csvwrite('imaging_data6.csv',Y6);
             Y7 = randn(N,nV); csvwrite('imaging_data7.csv',Y7);
             
-            % create contrast files
-            C=eye(7); csvwrite('tcontrasts.csv',C);
-            C = [1 1 1 1 0 0 0]; % First 4 vars are of interest
-            csvwrite('fcontrasts.csv',C)
+            % create nuisance files
+            Z = [randn(N,1) rand(N,1) rand(N,1)>.5];
+            csvwrite('Zmat.csv',Z);
+            
         end
         
         % Call PALM
@@ -50,7 +49,7 @@ switch test
 %             -evperdat imaging_data6.csv 3 1 -evperdat imaging_data7.csv 4 1...
 %             
         palm -y imaging_data1.csv -y imaging_data2.csv -y imaging_data3.csv...
-            -n 50 -o test_cca -semipartial x -cca...
+            -n 50 -o test_cca -semipartial x -cca 2 -z Zmat.csv...
             -x imaging_data4.csv -x imaging_data5.csv -x imaging_data6.csv -x imaging_data7.csv...
             
         palm_time = toc

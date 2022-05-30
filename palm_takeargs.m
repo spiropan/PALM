@@ -64,27 +64,27 @@ Nw     = sum(strcmp(vararginx,'-w'));        % number of nuisance inputs (CCA ri
 Nm     = sum(strcmp(vararginx,'-m'));        % number of masks
 Ns     = sum(strcmp(vararginx,'-s'));        % number of surfaces
 Nd     = sum(strcmp(vararginx,'-d'));        % number of design files
-Nimiss = sum(strcmp(vararginx,'-imiss'));    % number of missing indicators for inputs
-Ndmiss = sum(strcmp(vararginx,'-dmiss'));    % number of missing indicators for designs
 Nt     = sum(strcmp(vararginx,'-t'));        % number of t-contrast files
 Nf     = sum(strcmp(vararginx,'-f'));        % number of F-test files
 Ncon   = sum(strcmp(vararginx,'-con'));      % number of contrast files (t or F, mset format)
 Nevd   = sum(strcmp(vararginx,'-evperdat')); % number of EV per datum inputs
-opts.i     = cell(Ni,1);   % Input files (to constitute Y later)
-opts.x     = cell(Nx,1);   % Input files (to constitute X for CCA later)
-opts.y     = cell(Ny,1);   % Input files (to constitute Y for CCA later)
-opts.z     = cell(Nz,1);   % Input files (to constitute Z for CCA later)
-opts.w     = cell(Nw,1);   % Input files (to constitute W for CCA later)
-opts.m     = cell(Nm,1);   % Mask file(s)
-opts.s     = cell(Ns,1);   % Surface file(s)
-opts.sa    = cell(Ns,1);   % Area file(s) or weight(s)
-opts.d     = cell(Nd,1);   % Design file(s)
-opts.imiss = cell(Nd,1);   % Design file(s)
-opts.dmiss = cell(Nd,1);   % Design file(s)
-opts.t     = cell(Nt,1);   % t contrast file(s)
-opts.f     = opts.t;       % F contrast file(s)
-opts.Ccon  = cell(Ncon,1); % Contrast file(s) (t or F, mset format)
-opts.Dcon  = cell(Ncon,1); % Contrast file(s) (multivariate, mset format)
+Nimiss = sum(strcmp(vararginx,'-imiss'));    % number of missing indicators for inputs
+Ndmiss = sum(strcmp(vararginx,'-dmiss'));    % number of missing indicators for designs
+opts.i      = cell(Ni,1);   % Input files (to constitute Y later)
+opts.x      = cell(Nx,1);   % Input files (to constitute X for CCA later)
+opts.y      = cell(Ny,1);   % Input files (to constitute Y for CCA later)
+opts.z      = cell(Nz,1);   % Input files (to constitute Z for CCA later)
+opts.w      = cell(Nw,1);   % Input files (to constitute W for CCA later)
+opts.m      = cell(Nm,1);   % Mask file(s)
+opts.s      = cell(Ns,1);   % Surface file(s)
+opts.sa     = cell(Ns,1);   % Area file(s) or weight(s)
+opts.d      = cell(Nd,1);   % Design file(s)
+opts.imiss  = cell(Nd,1);   % Design file(s)
+opts.dmiss  = cell(Nd,1);   % Design file(s)
+opts.t      = cell(Nt,1);   % t contrast file(s)
+opts.f      = opts.t;       % F contrast file(s)
+opts.Ccon   = cell(Ncon,1); % Contrast file(s) (t or F, mset format)
+opts.Dcon   = cell(Ncon,1); % Contrast file(s) (multivariate, mset format)
 opts.eb       = [];       % File with definition of exchangeability blocks
 opts.vg       = [];       % File with definition of variance groups
 opts.EE       = false;    % To be filled below (don't edit this!)
@@ -94,7 +94,10 @@ opts.whole    = false;    % To be filled below (don't edit this!)
 opts.conskipcount = 0;    % When saving the contrasts, skip how many from 1?
 opts.singlevg = true;     % Make sure that sigle VG will be used if nothing is supplied (this is NOT a "default" setting, and it's not a setting at all, but hard coded. Don't edit it!)
 opts.subjidx  = [];       % Filename of the indices of subjects to keep
+opts.Nimiss   = Nimiss;   % Store Nimiss in orer pass it along to palm_prepglm.m
+opts.Ndmiss   = Ndmiss;   % Store Ndmiss in orer pass it along to palm_prepglm.m
 plm.subjidx   = [];       % Indices of subjects to keep
+plm.nEVdat    = Nevd;     % Store number of EV per datum
 
 % These are to be incremented below
 i = 1; m = 1; d = 1;
@@ -137,7 +140,19 @@ while a <= narginx
             opts.cca.do   = true;
             opts.pls.do   = false;
             opts.cacic.do = false;
-            a = a + 1;
+            
+            if nargin == a || ...
+                    ischar(vararginx{a+1}) && ...
+                    strcmpi(vararginx{a+1}(1),'-')
+                opts.ccaorplsparm = 1;
+                a = a + 1;
+            elseif ischar(vararginx{a+1})
+                opts.ccaorplsparm = eval(vararginx{a+1});
+                a = a + 2;
+            else
+                opts.ccaorplsparm = vararginx{a+1};
+                a = a + 2;
+            end
        
         case '-pls' % advanced
             
@@ -158,29 +173,29 @@ while a <= narginx
         case '-x' % basic
             
             % Get the filenames for X (CCA)
-            opts.x{i} = vararginx{a+1};
-            i = i + 1;
+            opts.x{x} = vararginx{a+1};
+            x = x + 1;
             a = a + 2;
             
         case '-y' % basic
             
             % Get the filenames for the data.
-            opts.y{i} = vararginx{a+1};
-            i = i + 1;
+            opts.y{y} = vararginx{a+1};
+            y = y + 1;
             a = a + 2;   
             
         case '-z' % basic
             
             % Get the filenames for nuisance (CCA left side or both)
-            opts.z{i} = vararginx{a+1};
-            i = i + 1;
+            opts.z{z} = vararginx{a+1};
+            z = z + 1;
             a = a + 2;
             
         case '-w' % basic
             
             % Get the filenames for nuisance (CCA right side)
-            opts.w{i} = vararginx{a+1};
-            i = i + 1;
+            opts.w{w} = vararginx{a+1};
+            w = w + 1;
             a = a + 2;
             
         case {'-semipartial','-part'} % advanced
@@ -1302,6 +1317,13 @@ if isfield(opts.cca,'semipartial') && ~isempty(opts.w)
     error('Option -semipartial should not be used if supplying w.');
 end
 
+% If doing CCA, determine if it's voxelwise or spatial 
+if opts.cca.do && Nx > 1
+    opts.cca.voxelwise = true;
+else
+    opts.cca.voxelwise = false;
+end
+
 % Make sure the NPC options make sense
 % - if -npc only, it's -npcmod
 % - if -npcmod only, it's -npcmod
@@ -1459,6 +1481,7 @@ end
 % Some options can't be used with missing data
 if Nimiss || Ndmiss
     opts.missingdata = true;
+
     if opts.MV
         error('The option "-mv" cannot be used with missing data.');
     end
