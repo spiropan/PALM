@@ -5,7 +5,7 @@ N = 50;
 nV = 8;
 rng(1)
 delete TEST_*.txt test_cca_dat_cca*.csv
-new_data=1; run_permcca=1; % COME BACK AND RUN permcca with evperdat case
+new_data=0; run_permcca=1; % COME BACK AND RUN permcca with evperdat case
 
 % Test cases: A - Y is imaging, X is also imaging (evperdat)
 %             B - Y is imaging, X is clinical variables
@@ -60,13 +60,13 @@ switch test
         
         if run_permcca
             clear rmat wmat
-            M=importdata('design.csv');
+            Z=importdata('Zmat.csv');
             Y1=importdata('imaging_data1.csv'); Y2=importdata('imaging_data2.csv');
             Y3=importdata('imaging_data3.csv'); Y4=importdata('imaging_data4.csv');
             Y5=importdata('imaging_data5.csv'); Y6=importdata('imaging_data6.csv');
             Y7=importdata('imaging_data7.csv');
             
-            Z = M(:,[5:7]); wmat=[]; Amat=[]; Bmat=[]; Umat=[]; Vmat=[];
+            wmat=[]; Amat=[]; Bmat=[]; Umat=[]; Vmat=[];
             tic
             for i=1:nV
                 %[pfwer,r(i),A,B,U,V] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)],X,20,Z,W,Sel,partial,Pset)

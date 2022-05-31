@@ -234,8 +234,8 @@ end
     end
 %end
 
-plm.Xset     = plm.EVset;
-plm.masksX   = plm.masksEV;
+%plm.Xset     = plm.EVset;
+%plm.masksX   = plm.masksEV;
 
 % Make sure that all data have the same size if NPC or MV are to be done
 if opts.npcmod || opts.MV || opts.forcemaskinter
@@ -351,60 +351,88 @@ if ~opts.EE && ~opts.ISE
     opts.EE  = true;
 end
 
-% Read and assemble the z (and w inputs) if provided
-fprintf('Reading nuisance variables.\n');
+% Read and assemble the x, z (and w inputs if provided)
+fprintf('Reading x data inputs and z (w) nuisance variables.\n');
+opts.evpos=[[1:Nx]' ones(Nx,1)]
+opts.evpos
 if opts.cca.voxelwise
-    plm.Zset = cell(Nz,1);
+    plm.Xset = cell(max(opts.evpos(:,2)),1); 
+    plm.Zset = cell(1,1);
+    for m = 1:numel(plm.Xset)
+        plm.Xset{m} = zeros(plm.N,1);
+    end
     for m = 1:numel(plm.Zset)
         plm.Zset{m} = zeros(plm.N,1);
     end
 else
-    plm.Zset = cell(max(Nz,1),1);
+    plm.Xset = cell(1,1);
+    plm.Zset = cell(1,1);
 end
 %plm.nZ = numel(plm.Zset);
-if Nz == 0 && ~ opts.cca.voxelwise
-    plm.Zset{1} = ones(plm.N,1);
-    opts.EE     = false;
-    opts.ISE    = true;
-elseif Nz > 0
-    for m = 1:Nz
-        Ztmp = palm_miscread(opts.z{m},[],[],opts.precision);
-        plm.Zset{m} = Ztmp.data;
-        if ~ isempty(plm.subjidx) && size(plm.Zset{m},1) ~= plm.N
-            plm.Zset{m} = plm.Zset{m}(plm.subjidx,:);
-        end
-        if size(plm.Zset{m},1) ~= plm.N
-            error([
-                'The number of rows in the nuisance Z matrix does\n' ...
-                'not match the number of observations in the data.\n' ...
-                '- Rows in the matrix: %d\n' ...
-                '- Observations in the data: %d\n' ...
-                'In file %s\n'], ...
-                size(plm.Zset{m},1),plm.N,opts.z{m});
-        end
-        if any(isnan(plm.Zset{m}(:))) || any(isinf(plm.Zset{m}(:)))
-            error([
-                'The nuisance Z matrix cannot contain NaN or Inf.\n' ...
-                'In file %s\n'],opts.z{m});
-        end
-    end
-end
+plm.Xset{1} = zeros(size(plm.EVset{1},1),Nx,size(plm.EVset{1},2)); 
+plm.Zset{1} = zeros(size(plm.EVset{1},1),size(opts.z{1},2),size(plm.EVset{1},2)); 
+% for m = 1:1
+%     Xtmp = palm_miscread(opts.x{m},[],[],opts.precision);
+%     plm.Xset{m} = zeros(size(opts.x{m},1),Nx,size(opts.x{m},2)); %Xtmp)
+%     if ~ isempty(plm.subjidx) && size(plm.Xset{m},1) ~= plm.N
+%         plm.Xset{m} = plm.Xset{m}(plm.subjidx,:);
+%     end
+%     if size(plm.Xset{m},1) ~= plm.N
+%         error([
+%             'The number of rows in the X matrix does\n' ...
+%             'not match the number of observations in the data.\n' ...
+%             '- Rows in the matrix: %d\n' ...
+%             '- Observations in the data: %d\n' ...
+%             'In file %s\n'], ...
+%             size(plm.Xset{m},1),plm.N,opts.x{m});
+%     end
+%     if any(isnan(plm.Xset{m}(:))) || any(isinf(plm.Xset{m}(:)))
+%         error([
+%             'The nuisance X matrix cannot contain NaN or Inf.\n' ...
+%             'In file %s\n'],opts.x{m});
+%     end
+% end
 
 % Include the EV per datum
-opts.evpos=[[1:Nx]' ones(Nx,1)];
 
+plm.EVset
+plm.Xset
+plm.nEVdat
+plm.EVsiz
 if opts.cca.voxelwise
     for ev = 1:Nx; %plm.nEVdat
-        if ndims(plm.Xset{opts.evpos(ev,2)}) == 2 %#ok<ISMAT>
-            plm.Xset{opts.evpos(ev,2)} = ...
-                repmat(plm.Xset{opts.evpos(ev,2)},[1 1 plm.EVsiz(ev)]);
-        end
+        disp('ndims')
+        ndims(plm.Xset{opts.evpos(ev,2)})
+%         if ndims(plm.Xset{opts.evpos(ev,2)}) == 2 %#ok<ISMAT>
+%             disp('ok here')   
+%             plm.Xset{opts.evpos(ev,2)} = ...
+%                 repmat(plm.Xset{opts.evpos(ev,2)},[1 1 plm.EVsiz(ev)]);
+%         end
+        
+        permute(plm.EVset{ev},[1 3 2])
         plm.Xset{opts.evpos(ev,2)}(:,opts.evpos(ev,1),:) = ...
             permute(plm.EVset{ev},[1 3 2]);
     end
+    % Read Z nuisance
+    Ztmp = palm_miscread(opts.z{1},[],[],opts.precision);
+    plm.Zset{1}=Ztmp.data;
+    for ev = 1:size(opts.z{1},2); %plm.nEVdat
+        
+%         if ndims(plm.Xset{opts.evpos(ev,2)}) == 2 %#ok<ISMAT>
+%             disp('ok here')   
+%             plm.Xset{opts.evpos(ev,2)} = ...
+%                 repmat(plm.Xset{opts.evpos(ev,2)},[1 1 plm.EVsiz(ev)]);
+%         end
+        ev
+        
+%         plm.Zset{1}(:,ev,:) = ...
+%             permute(opts.z{1},[1 3 2]);
+    end
+    
     plm = rmfield(plm,{'EVset','EVsiz'});
 end
-
+plm.Xset
+% pause(10)
 % Some related sanity checks
 % if opts.evperdat
 %     for m = 1:plm.nM
@@ -418,7 +446,7 @@ end
 %         end
 %     end
 % end
-
+opts.idxout=true;
 
 % Make sure EVs of interest aren't represented also in the nuisance
 % Note that some lines below the same is done for the cases in which 
@@ -427,31 +455,31 @@ if ~ opts.demean && ~ opts.vgdemean && ~ opts.noranktest
     testrank(plm)
 end
 
-% if ~ opts.cmcx
-%     seqtmp = zeros(plm.N,sum(plm.nC));
-%     j = 1;
-%     plm.seq = cell(plm.nM,1);
-%     for m = 1:plm.nM
-%         plm.seq{m} = cell(plm.nC(m),1);
-%         for c = 1:plm.nC(m)
-%             Xtmp = palm_partition(plm.Mset{m}(:,:,1),plm.Cset{m}{c},opts.pmethodp);
-%             [~,~,plm.seq{m}{c}] = unique(Xtmp,'rows');
-%             seqtmp(:,j) = plm.seq{m}{c};
-%             j = j + 1;
-%         end
-%     end
-%     tmp = sum(diff(seqtmp,1,2).^2,2);
-%     if (opts.corrcon || opts.npccon || opts.syncperms) && any(tmp(:) ~= 0)
-%         warning([ ...
-%             'You chose to correct over contrasts, or run NPC\n'             ...
-%             '         between contrasts, but with the design(s) and,\n'     ...
-%             '         contrasts given it is not possible to run\n'          ...
-%             '         synchronised permutations without ignoring repeated\n'...
-%             '         elements in the design matrix (or matrices). To\n'    ...
-%             '         solve this, adding the option "-cmcx" automatically.%s\n'],'');
-%         opts.cmcx = true;
-%     end
-% end
+if ~ opts.cmcx
+    seqtmp = zeros(plm.N,1);
+    j = 1;
+    plm.seq = cell(1,1);
+    for m = 1:1
+        plm.seq{m} = cell(1,1);
+        for c = 1:1
+            Xtmp = plm.Xset{1}(:,:,1);
+            [~,~,plm.seq{m}{c}] = unique(Xtmp,'rows');
+            seqtmp(:,j) = plm.seq{m}{c};
+            j = j + 1;
+        end
+    end
+    tmp = sum(diff(seqtmp,1,2).^2,2);
+    if (opts.corrcon || opts.npccon || opts.syncperms) && any(tmp(:) ~= 0)
+        warning([ ...
+            'You chose to correct over contrasts, or run NPC\n'             ...
+            '         between contrasts, but with the design(s) and,\n'     ...
+            '         contrasts given it is not possible to run\n'          ...
+            '         synchronised permutations without ignoring repeated\n'...
+            '         elements in the design matrix (or matrices). To\n'    ...
+            '         solve this, adding the option "-cmcx" automatically.%s\n'],'');
+        opts.cmcx = true;
+    end
+end
 
 if opts.cmcx % note can't use 'else' here because opts.cmcx is modified in the 'if' above
     plm.seq = cell(plm.nM,1);
@@ -519,7 +547,7 @@ end
 
 % Mean center input data (-demean)
 if opts.demean
-    for m = 1:Nx
+    for m = 1:numel(plm.Xset)
         plm.Xset{m} = bsxfun(@minus,plm.Xset{m},mean(plm.Xset{m},1));
     end
     for y = 1:plm.nY
