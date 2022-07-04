@@ -4,7 +4,7 @@ N = 50;
 nV = 8;
 
 delete test_glm_dat*.csv
-new_data=0;
+new_data=1;
 
 % Test cases: A - evperdat
 %             B - not evperdat

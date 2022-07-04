@@ -796,24 +796,6 @@ if opts.cmcx % note can't use 'else' here because opts.cmcx is modified in the '
     end
 end
 
-% Make sure not too many components are asked if CCA or PLS are used
-if opts.CCA || opts.PLS
-    if opts.ccaorplsparm > plm.nY
-        error(['Cannot ask more canonical correlations (CCA) or \n', ...
-            'score vectors (PLS) (k=%d) than the number of modalities (#(-i)=%d).\n'],...
-            opts.ccaorplsparm,plm.nY);
-    end
-    for m = 1:plm.nM
-        for c = 1:plm.nC(m)
-            if opts.ccaorplsparm > plm.rC{m}(c)
-                error(['Cannot ask more canonical correlations (for CCA) or score \n', ...
-                    'vectors (for PLS) than the rank of the contrast (k=%d > rank=%d).\n', ...
-                    'Please check design %d, contrast %d.'],opts.ccaorplsparm,plm.rC{m}(c),m,c);
-            end
-        end
-    end
-end
-
 % Read the exchangeability blocks. If none is specified, all observations
 % are assumed to be in the same large block. Also treat the legacy format of
 % a single column for the EBs.

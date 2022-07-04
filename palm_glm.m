@@ -942,6 +942,7 @@ for m = 1:plm.nM
                 plm.Yq{m}{c} = permute(plm.Yq{m}{c},[1 3 2]);
             end
         end
+        
         % Pick a name to save the files later.
         if opts.pearson || opts.accel.noperm
             if     plm.rC{m}(c) == 1

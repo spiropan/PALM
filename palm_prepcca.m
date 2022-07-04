@@ -32,6 +32,7 @@ Nz = size(opts.z,1);
 Nw = size(opts.w,1);
 Ns = size(opts.s,1);
 Nm = size(opts.m,1);
+Nd = 1;
 
 % Read and organise the data.
 % Initialize variables
@@ -52,7 +53,7 @@ for i = 1:Ny
     else
         maskstruct = plm.masks{i};
     end
-    [plm.Yset{i},plm.masks{i},plm.Yisvol(i),plm.Yissrf(i),plm.Ykindstr{i}] = ...
+    [plm.Yset{i},plm.Ymasks{i},plm.Yisvol(i),plm.Yissrf(i),plm.Ykindstr{i}] = ...
         palm_ready(opts.y{i},maskstruct,opts,true);
     
     % Select subjects
@@ -67,7 +68,7 @@ for i = 1:Ny
     end
     if size(plm.Yset{i},1) ~= plm.N
         error([
-            'At least two of the input data files do not have\n' ...
+            'At least two of the Y input data files do not have\n' ...
             'compatible sizes:\n' ...
             '- File %d (%s) has %d observations\n' ...
             '- File %d (%s) has %d observations'], ...
@@ -76,169 +77,279 @@ for i = 1:Ny
     end
 end
 
-plm.nmasks = numel(plm.masks);
-plm.nY     = numel(plm.Yset); 
-
-% Read the X input data (modeled after EV per datum in palm_prepglm)
-%if opts.evperdat
-plm.nEVdat = Nx;
-plm.EVset  = cell(plm.nEVdat,1);
-
-% If there's one mask, use the same one
-% for all the input files. Otherwise, create them.
-Nm
-plm.nEVdat
-if Nm == 1
-    for ev = 1:plm.nEVdat
-        plm.masksEV{ev} = plm.masks{1};
+% Read and organize X
+for i = 1:Nx
+    % Read input file
+    fprintf('Reading input %d/%d: %s\n',i,Nx,opts.x{i});
+    if Nm == 0
+        maskstruct = [];
+    else
+        maskstruct = plm.masks{i};
     end
-elseif opts.designperinput || (plm.nY == 1 && Nd == 1)
-    for ev = 1:plm.nEVdat
-        plm.masksEV{ev} = plm.masks{opts.evpos(ev,2)};
-    end
-else
-    plm.masksEV = cell(plm.nEVdat,1);
-end
-
-% Read input file & select subjects
-for ev = 1:plm.nEVdat
-    fprintf('Reading X inputs %d/%d: %s\n',ev,plm.nEVdat,opts.x{ev});
-    [plm.EVset{ev},plm.masksEV{ev}] = palm_ready(opts.x{ev},plm.masksEV{ev},opts,opts.demean);
+    [plm.Xset{i},plm.Xmasks{i},plm.Xisvol(i),plm.Xissrf(i),plm.Xkindstr{i}] = ...
+        palm_ready(opts.x{i},maskstruct,opts,true);
+    
+    % Select subjects
     if ~ isempty(plm.subjidx)
-        plm.EVset{ev} = plm.EVset{ev}(plm.subjidx,:);
+        plm.Xset{i} = plm.Xset{i}(plm.subjidx,:);
     end
-end
-plm.nmasksEV = numel(plm.masksEV);
-
-% Make the intersection of the EVs that will go all in the same design
-plm.masksEV{4}
-Dlist = 1; %unique(opts.evpos(:,2),'rows');
-for d = 1:numel(Dlist,1)
-    evidx = [1:Nx]; %find(opts.evpos(:,2) == Dlist(d));
-    evidx
-    if numel(evidx) > 1
-        newmask = true(size(plm.masksEV{d}.data));
-        
-        for ev = evidx
-            ev
-            newmask = newmask & plm.masksEV{ev}.data;
-            
-        end
-        for ev = evidx
-            plm.EVset{ev} = plm.EVset{ev}(:,newmask(plm.masksEV{ev}.data(:)));
-            plm.masksEV{ev}.data = newmask;
-        end
+    
+    % For the first input data, keep the size to
+    % compare with the others, then check the size
+    if i == 1
+        plm.N = size(plm.Xset{i},1);
+    end
+    if size(plm.Xset{i},1) ~= plm.N
+        error([
+            'At least two of the X input data files do not have\n' ...
+            'compatible sizes:\n' ...
+            '- File %d (%s) has %d observations\n' ...
+            '- File %d (%s) has %d observations'], ...
+            1,opts.x{1},plm.N, ...
+            i,opts.x{i},size(plm.Xset{i},1));
     end
 end
 
-% Then make the intersections with the respective masks of the input files
-if (plm.nY == 1 && Nx == 1)
-    %for d = unique(opts.evpos(:,2))'
-        EV = 1; %find(opts.evpos(:,2) == d);
-        newmask = zeros(numel(plm.masks{1}.data),numel(EV)+1);
+plm.nmasksY = numel(plm.Ymasks);
+plm.nmasksX = numel(plm.Xmasks);
+plm.nY      = numel(plm.Yset); 
+plm.nX      = numel(plm.Xset);
+
+% Read the zevperdat input data (modeled after EV per datum in palm_prepglm)
+if opts.zevperdat
+    plm.ZEVset  = cell(plm.nZEVdat,1);
+    
+    % If there's one mask, use the same one
+    % for all the input files. Otherwise, create them.
+    if Nm == 1
+        for ev = 1:plm.nZEVdat
+            plm.masksZEV{ev} = plm.Ymasks{1};
+        end
+    else
+        plm.masksZEV = cell(plm.nZEVdat,1);
+    end
+    
+    % Read input file & select subjects
+    for ev = 1:plm.nZEVdat
+        fprintf('Reading zevperdat inputs %d/%d: %s\n',ev,plm.nZEVdat,opts.zevdatfile{ev});
+        [plm.ZEVset{ev},plm.masksZEV{ev}] = palm_ready(opts.zevdatfile{ev},plm.masksZEV{ev},opts,opts.demean);
+        if ~ isempty(plm.subjidx)
+            plm.ZEVset{ev} = plm.ZEVset{ev}(plm.subjidx,:);
+        end
+    end
+    plm.nmasksZEV = numel(plm.masksZEV);
+    
+    % Make the intersection of the ZEVs 
+    newmask = true(size(plm.masksZEV{1}.data));
+    for d = 1:plm.nmasksZEV,
+        newmask = newmask & plm.masksZEV{d}.data;
+        plm.ZEVset{d} = plm.ZEVset{d}(:,newmask(plm.masksZEV{d}.data(:)));
+        plm.masksZEV{d}.data = newmask;
+    end
+    
+    % Then make the intersections with the respective masks of the input files
+    if (plm.nY == 1 && plm.nX == 1) % Spatial CCA
+        ZEV = 1:plm.nZEVdat;
+        newmask = zeros(numel(plm.Ymasks{1}.data),numel(ZEV)+1);
         c = 1;
-        for ev = EV'
-            newmask(:,c) = plm.masksEV{ev}.data(:);
+        for ev = ZEV'
+            newmask(:,c) = plm.masksZEV{ev}.data(:);
             c = c + 1;
         end
-        newmask(:,c) = plm.masks{1}.data(:);
-        newmask = reshape(all(newmask,2),size(plm.masks{1}.data));
-        for ev = EV'
-            plm.EVset{ev} = plm.EVset{ev}(:,newmask(plm.masksEV{ev}.data(:)));
-            plm.masksEV{ev}.data = newmask;
+        newmask(:,c) = plm.Ymasks{1}.data(:);
+        newmask = reshape(all(newmask,2),size(plm.Ymasks{1}.data));
+        for ev = ZEV'
+            plm.ZEVset{ev} = plm.ZEVset{ev}(:,newmask(plm.masksZEV{ev}.data(:)));
+            plm.masksZEV{ev}.data = newmask;
         end
-        plm.Yset{1} = plm.Yset{1}(:,newmask(plm.masks{1}.data(:)));
-        plm.masks{1}.data    = newmask;
-    %end
-else
-    sizy = zeros(plm.nmasks,1);
-    for y = 1:plm.nmasks
-        sizy(y) = numel(plm.masks{y}.data);
-    end
-    sizev = zeros(plm.nmasksEV,1);
-    for ev = 1:plm.nmasksEV
-        sizev(ev) = numel(plm.masksEV{ev}.data);
-    end
-    if  numel(unique(sizy)) > 1 || ...
-            numel(unique(sizev)) > 1 || ...
-            sizy(1) ~= sizev(1)
-        error([...
-            'For multiple "-i" and/or "-evperdat", with "-npccon",\n',...
-            'and without the option "-designperinput", the inputs, EVs \n'...
-            'and masks need to be all of the same sizes.%s'],'');
-    end
-    newmask = true(size(plm.masksEV{1}.data));
-    for y = 1:plm.nmasks
-        newmask = newmask & plm.masks{y}.data;
-    end
-    for ev = 1:plm.nmasksEV
-        newmask = newmask & plm.masksEV{ev}.data;
-    end
-    for y = 1:plm.nmasks
-        plm.Yset{y} = plm.Yset{y}(:,newmask(plm.masks{y}.data(:)));
-        plm.masks{y}.data = newmask;
-    end
-    for ev = 1:plm.nmasksEV
-        plm.EVset{ev} = plm.EVset{ev}(:,newmask(plm.masksEV{ev}.data(:)));
-        plm.masksEV{ev}.data = newmask;
+        plm.Yset{1} = plm.Yset{1}(:,newmask(plm.Ymasks{1}.data(:)));
+        plm.Ymasks{1}.data    = newmask;
+    else
+        sizy = zeros(plm.nmasksY,1);
+        for y = 1:plm.nmasksY
+            sizy(y) = numel(plm.Ymasks{y}.data);
+        end
+        sizev = zeros(plm.nmasksZEV,1);
+        for ev = 1:plm.nmasksZEV
+            sizev(ev) = numel(plm.masksZEV{ev}.data);
+        end
+        if  numel(unique(sizy)) > 1 || ...
+                numel(unique(sizev)) > 1 || ...
+                sizy(1) ~= sizev(1)
+            error([...
+                'For multiple "-i" and/or "-evperdat", with "-npccon",\n',...
+                'and without the option "-designperinput", the inputs, EVs \n'...
+                'and masks need to be all of the same sizes.%s'],'');
+        end
+        newmask = true(size(plm.masksZEV{1}.data));
+        for y = 1:plm.nmasksY
+            newmask = newmask & plm.Ymasks{y}.data;
+        end
+        for ev = 1:plm.nmasksZEV
+            newmask = newmask & plm.masksZEV{ev}.data;
+        end
+        for y = 1:plm.nmasksY
+            plm.Yset{y} = plm.Yset{y}(:,newmask(plm.Ymasks{y}.data(:)));
+            plm.Ymasks{y}.data = newmask;
+        end
+        for x = 1:plm.nmasksX
+            plm.Xset{x} = plm.Xset{x}(:,newmask(plm.Xmasks{x}.data(:)));
+            plm.Xmasks{x}.data = newmask;
+        end
+        for ev = 1:plm.nmasksZEV
+            plm.ZEVset{ev} = plm.ZEVset{ev}(:,newmask(plm.masksZEV{ev}.data(:)));
+            plm.masksZEV{ev}.data = newmask;
+        end
     end
 end
-%end
 clear('newmask');
 
-%plm.nX     = numel(plm.Xset);
+% Read the wevperdat input data (modeled after EV per datum in palm_prepglm)
+if opts.wevperdat
+    plm.WEVset  = cell(plm.nWEVdat,1);
+    
+    % If there's one mask, use the same one
+    % for all the input files. Otherwise, create them.
+    if Nm == 1
+        for ev = 1:plm.nWEVdat
+            plm.masksWEV{ev} = plm.Xmasks{1};
+        end
+    else
+        plm.masksWEV = cell(plm.nWEVdat,1);
+    end
+    
+    % Read input file & select subjects
+    for ev = 1:plm.nWEVdat
+        fprintf('Reading wevperdat inputs %d/%d: %s\n',ev,plm.nWEVdat,opts.wevdatfile{ev});
+        [plm.WEVset{ev},plm.masksWEV{ev}] = palm_ready(opts.wevdatfile{ev},plm.masksWEV{ev},opts,opts.demean);
+        if ~ isempty(plm.subjidx)
+            plm.WEVset{ev} = plm.WEVset{ev}(plm.subjidx,:);
+        end
+    end
+    plm.nmasksWEV = numel(plm.masksWEV);
+    
+    % Make the intersection of the ZEVs 
+    newmask = true(size(plm.masksWEV{1}.data));
+    for d = 1:plm.nmasksWEV,
+        newmask = newmask & plm.masksWEV{d}.data;
+        plm.WEVset{d} = plm.WEVset{d}(:,newmask(plm.masksWEV{d}.data(:)));
+        plm.masksWEV{d}.data = newmask;
+    end
+    
+    % Then make the intersections with the respective masks of the input files
+    if (plm.nY == 1 && plm.nX == 1) % Spatial CCA
+        WEV = 1:plm.nWEVdat;
+        newmask = zeros(numel(plm.Ymasks{1}.data),numel(WEV)+1);
+        c = 1;
+        for ev = WEV'
+            newmask(:,c) = plm.masksWEV{ev}.data(:);
+            c = c + 1;
+        end
+        newmask(:,c) = plm.Xmasks{1}.data(:);
+        newmask = reshape(all(newmask,2),size(plm.Xmasks{1}.data));
+        for ev = WEV'
+            plm.WEVset{ev} = plm.WEVset{ev}(:,newmask(plm.masksWEV{ev}.data(:)));
+            plm.masksWEV{ev}.data = newmask;
+        end
+        plm.Yset{1} = plm.Yset{1}(:,newmask(plm.Ymasks{1}.data(:)));
+        plm.Ymasks{1}.data    = newmask;
+    else
+        sizy = zeros(plm.nmasksY,1);
+        for y = 1:plm.nmasksY
+            sizy(y) = numel(plm.Ymasks{y}.data);
+        end
+        sizev = zeros(plm.nmasksWEV,1);
+        for ev = 1:plm.nmasksWEV
+            sizev(ev) = numel(plm.masksWEV{ev}.data);
+        end
+        if  numel(unique(sizy)) > 1 || ...
+                numel(unique(sizev)) > 1 || ...
+                sizy(1) ~= sizev(1)
+            error([...
+                'For multiple "-i" and/or "-evperdat", with "-npccon",\n',...
+                'and without the option "-designperinput", the inputs, EVs \n'...
+                'and masks need to be all of the same sizes.%s'],'');
+        end
+        newmask = true(size(plm.masksWEV{1}.data));
+        for y = 1:plm.nmasksY
+            newmask = newmask & plm.Ymasks{y}.data;
+        end
+        for ev = 1:plm.nmasksWEV
+            newmask = newmask & plm.masksWEV{ev}.data;
+        end
+        for y = 1:plm.nmasksY
+            plm.Yset{y} = plm.Yset{y}(:,newmask(plm.Ymasks{y}.data(:)));
+            plm.Ymasks{y}.data = newmask;
+        end
+        for x = 1:plm.nmasksX
+            plm.Xset{x} = plm.Xset{x}(:,newmask(plm.Xmasks{x}.data(:)));
+            plm.Xmasks{x}.data = newmask;
+        end
+        for ev = 1:plm.nmasksWEV
+            plm.WEVset{ev} = plm.WEVset{ev}(:,newmask(plm.masksWEV{ev}.data(:)));
+            plm.masksWEV{ev}.data = newmask;
+        end
+    end
+end
+clear('newmask');
 
 % Create an intersection mask if NPC or MV is to be done, and further apply
 % to the data that was previously masked above, as needed.
 if opts.cca.do || opts.forcemaskinter
-    if plm.nmasks > 1
+    if plm.nmasksY > 1
         
         % If there is one mask per modality, make an instersection mask.
-        maskinter = true(size(plm.masks{1}.data));
-        for m = 1:plm.nmasks
-            maskinter = maskinter & plm.masks{m}.data;
+        maskinter = true(size(plm.Ymasks{1}.data));
+        for m = 1:plm.nmasksY
+            maskinter = maskinter & plm.Ymasks{m}.data;
         end
-        %if opts.evperdat
-            for ev = 1:plm.nEVdat
-                maskinter = maskinter & plm.masksEV{ev}.data;
+        if opts.zevperdat
+            for ev = 1:plm.nZEVdat
+                maskinter = maskinter & plm.masksZEV{ev}.data;
             end
-        %end
+        end
         
         % Note that this line below uses Ytmp, which is from the previous loop.
         % This can be used here because with NPC all data has the same size.
-        plm.maskinter = palm_maskstruct(maskinter(:)',plm.masks{1}.readwith,plm.masks{1}.extra);
+        plm.maskinter = palm_maskstruct(maskinter(:)',plm.Ymasks{1}.readwith,plm.Ymasks{1}.extra);
         
         % Apply it to further subselect data points
         for y = 1:plm.nY
-            plm.Yset{y} = plm.Yset{y}(:,plm.maskinter.data(plm.masks{y}.data));
+            plm.Yset{y} = plm.Yset{y}(:,plm.maskinter.data(plm.Ymasks{y}.data));
         end
-        if opts.evperdat
-            for ev = 1:plm.nEVdat
-                plm.EVset{ev} = plm.EVset{ev}(:,plm.maskinter.data(plm.masksEV{ev}.data));
+        if opts.zevperdat
+            for ev = 1:plm.nZEVdat
+                plm.ZEVset{ev} = plm.ZEVset{ev}(:,plm.maskinter.data(plm.masksZEV{ev}.data));
             end
         end
     else
         % If only one mask was given.
-        plm.maskinter = plm.masks{1};
+        plm.maskinter = plm.Ymasks{1};
         for y = 1:plm.nY
-            plm.Yset{y} = plm.Yset{y}(:,plm.maskinter.data(plm.masks{1}.data));
+            plm.Yset{y} = plm.Yset{y}(:,plm.maskinter.data(plm.Ymasks{1}.data));
         end
     end
 end
 
 % Sizes for later
-%if opts.evperdat
-    plm.EVsiz = zeros(plm.nEVdat,1);
-    for ev = 1:plm.nEVdat
-        plm.EVsiz(ev) = size(plm.EVset{ev},2);
+if opts.zevperdat
+    plm.ZEVsiz = zeros(plm.nZEVdat,1);
+    for ev = 1:plm.nZEVdat
+        plm.ZEVsiz(ev) = size(plm.ZEVset{ev},2);
     end
-%end
+end
 
-%plm.Xset     = plm.EVset;
-%plm.masksX   = plm.masksEV;
+% Sizes for later
+if opts.wevperdat
+    plm.WEVsiz = zeros(plm.nWEVdat,1);
+    for ev = 1:plm.nWEVdat
+        plm.WEVsiz(ev) = size(plm.WEVset{ev},2);
+    end
+end
 
-% Make sure that all data have the same size if NPC or MV are to be done
-if opts.npcmod || opts.MV || opts.forcemaskinter
+
+% Make sure that all data have the same size
+if opts.cca.do || opts.forcemaskinter
     % The plm.Ysiz is redefined below.
     for y = 1:plm.nY
         plm.Ysiz(y) = size(plm.Yset{y},2);
@@ -264,19 +375,32 @@ if opts.npcmod || opts.MV || opts.forcemaskinter
     clear('usiz');
 end
 
-% Make sure none of the modalities is empty
+% Make sure none of the data inputs is empty
 for y = 1:plm.nY
     if any(size(plm.Yset{y}) == 0)
         error('Modality %d has no data.\n',y);
     end
 end
 
-% A variable with the cumulative sizes of all modalities will be handy later
+for x = 1:plm.nX
+    if any(size(plm.Xset{x}) == 0)
+        error('Modality %d has no data.\n',x);
+    end
+end
+
+% Variables with the cumulative sizes of all data inputs will be handy later
 plm.Ysiz = zeros(plm.nY,1);
 for y = 1:plm.nY
     plm.Ysiz(y) = size(plm.Yset{y},2);
 end
 plm.Ycumsiz = vertcat(0,cumsum(plm.Ysiz));
+
+plm.Xsiz = zeros(plm.nX,1);
+for y = 1:plm.nX
+    plm.Xsiz(y) = size(plm.Xset{y},2);
+end
+plm.Xcumsiz = vertcat(0,cumsum(plm.Xsiz));
+
 
 % Take this opportunity to save the masks if the user requested.
 if opts.savemask
@@ -298,7 +422,7 @@ if opts.savemask
     end
 end
 
-% If MV was selected, make sure that Y is full rank.
+% If CCA was selected, make sure that Y is full rank.
 if opts.cca.do && ~ opts.noranktest
     fprintf('Testing rank of the data for the MV tests. To skip, use -noranktest.\n')
     Y = cat(3,plm.Yset{:});
@@ -351,87 +475,128 @@ if ~opts.EE && ~opts.ISE
     opts.EE  = true;
 end
 
-% Read and assemble the x, z (and w inputs if provided)
-fprintf('Reading x data inputs and z (w) nuisance variables.\n');
-opts.evpos=[[1:Nx]' ones(Nx,1)]
-opts.evpos
-if opts.cca.voxelwise
-    plm.Xset = cell(max(opts.evpos(:,2)),1); 
+% Read and assemble the z inputs if provided
+fprintf('Reading Z nuisance variables.\n');
+if Nz > 0
     plm.Zset = cell(1,1);
-    for m = 1:numel(plm.Xset)
-        plm.Xset{m} = zeros(plm.N,1);
-    end
     for m = 1:numel(plm.Zset)
         plm.Zset{m} = zeros(plm.N,1);
     end
-else
-    plm.Xset = cell(1,1);
-    plm.Zset = cell(1,1);
 end
-%plm.nZ = numel(plm.Zset);
-plm.Xset{1} = zeros(size(plm.EVset{1},1),Nx,size(plm.EVset{1},2)); 
-plm.Zset{1} = zeros(size(plm.EVset{1},1),size(opts.z{1},2),size(plm.EVset{1},2)); 
-% for m = 1:1
-%     Xtmp = palm_miscread(opts.x{m},[],[],opts.precision);
-%     plm.Xset{m} = zeros(size(opts.x{m},1),Nx,size(opts.x{m},2)); %Xtmp)
-%     if ~ isempty(plm.subjidx) && size(plm.Xset{m},1) ~= plm.N
-%         plm.Xset{m} = plm.Xset{m}(plm.subjidx,:);
-%     end
-%     if size(plm.Xset{m},1) ~= plm.N
-%         error([
-%             'The number of rows in the X matrix does\n' ...
-%             'not match the number of observations in the data.\n' ...
-%             '- Rows in the matrix: %d\n' ...
-%             '- Observations in the data: %d\n' ...
-%             'In file %s\n'], ...
-%             size(plm.Xset{m},1),plm.N,opts.x{m});
-%     end
-%     if any(isnan(plm.Xset{m}(:))) || any(isinf(plm.Xset{m}(:)))
-%         error([
-%             'The nuisance X matrix cannot contain NaN or Inf.\n' ...
-%             'In file %s\n'],opts.x{m});
-%     end
-% end
 
-% Include the EV per datum
+if Nz == 0 && ~ opts.zevperdat
+    plm.Zset{1} = []; %ones(plm.N,1);
+%     opts.EE     = false;
+%     opts.ISE    = true;
+elseif Nz > 0
+    plm.nZ = numel(plm.Zset);
+    for z = 1:Nz % The maximum Nz is one
+        Ztmp = palm_miscread(opts.z{z},[],[],opts.precision);
+        plm.Zset{z} = Ztmp.data;
+        if ~ isempty(plm.subjidx) && size(plm.Zset{z},1) ~= plm.N
+            plm.Zset{z} = plm.Zset{z}(plm.subjidx,:);
+        end
+        if size(plm.Zset{z},1) ~= plm.N
+            error([
+                'The number of rows in the nuisance covariate matrix does\n' ...
+                'not match the number of observations in the data.\n' ...
+                '- Rows in the matrix: %d\n' ...
+                '- Observations in the data: %d\n' ...
+                'In file %s\n'], ...
+                size(plm.Zset{z},1),plm.N,opts.z{z});
+        end
+        if any(isnan(plm.Zset{z}(:))) || any(isinf(plm.Zset{z}(:)))
+            error([
+                'The nuisance covariate matrix cannot contain NaN or Inf.\n' ...
+                'In file %s\n'],opts.z{z});
+        end
+    end
+end
 
-plm.EVset
-plm.Xset
-plm.nEVdat
-plm.EVsiz
-if opts.cca.voxelwise
-    for ev = 1:Nx; %plm.nEVdat
+% Include the ZEV per datum (assume Nz is one for now)
+if opts.zevperdat
+    for ev = 1:plm.nZEVdat
         disp('ndims')
-        ndims(plm.Xset{opts.evpos(ev,2)})
-%         if ndims(plm.Xset{opts.evpos(ev,2)}) == 2 %#ok<ISMAT>
-%             disp('ok here')   
-%             plm.Xset{opts.evpos(ev,2)} = ...
-%                 repmat(plm.Xset{opts.evpos(ev,2)},[1 1 plm.EVsiz(ev)]);
-%         end
-        
-        permute(plm.EVset{ev},[1 3 2])
-        plm.Xset{opts.evpos(ev,2)}(:,opts.evpos(ev,1),:) = ...
-            permute(plm.EVset{ev},[1 3 2]);
+        ndims(plm.Zset{1})
+        nzcols = size(plm.Zset{1},2); % number of nuisance variables (columns in -z)
+        if ndims(plm.Zset{1}) == 2 %#ok<ISMAT>
+            plm.Zset{1} = ...
+                repmat(plm.Zset{1},[1 1 plm.ZEVsiz(ev)]);
+        end
+        permute(plm.ZEVset{ev},[1 3 2])
+        plm.Zset{1}(:,nzcols+ev,:) = ...
+            permute(plm.ZEVset{ev},[1 3 2]);
     end
-    % Read Z nuisance
-    Ztmp = palm_miscread(opts.z{1},[],[],opts.precision);
-    plm.Zset{1}=Ztmp.data;
-    for ev = 1:size(opts.z{1},2); %plm.nEVdat
-        
-%         if ndims(plm.Xset{opts.evpos(ev,2)}) == 2 %#ok<ISMAT>
-%             disp('ok here')   
-%             plm.Xset{opts.evpos(ev,2)} = ...
-%                 repmat(plm.Xset{opts.evpos(ev,2)},[1 1 plm.EVsiz(ev)]);
-%         end
-        ev
-        
-%         plm.Zset{1}(:,ev,:) = ...
-%             permute(opts.z{1},[1 3 2]);
+    plm = rmfield(plm,{'ZEVset','ZEVsiz'});
+else 
+    % Make Zset the right size if no zevperdat 
+    if ndims(plm.Zset{1}) == 2 %#ok<ISMAT>
+        plm.Zset{1} = ...
+            repmat(plm.Zset{1},[1 1 size(plm.Yset{1},2)]);
     end
-    
-    plm = rmfield(plm,{'EVset','EVsiz'});
 end
-plm.Xset
+    
+% Read and assemble the w inputs if provided
+fprintf('Reading W nuisance variables.\n');
+if Nw > 0
+    plm.Wset = cell(1,1);
+    for m = 1:numel(plm.Wset)
+        plm.Wset{m} = zeros(plm.N,1);
+    end
+end
+
+if Nw == 0 && ~ opts.wevperdat
+    plm.Wset{1} = []; % ones(plm.N,1);
+%     opts.EE     = false;
+%     opts.ISE    = true;
+elseif Nw > 0
+    plm.nW = numel(plm.Wset);
+    for w = 1:Nw % Maximum Nw is one
+        Wtmp = palm_miscread(opts.w{w},[],[],opts.precision);
+        plm.Wset{w} = Wtmp.data;
+        if ~ isempty(plm.subjidx) && size(plm.Wset{z},1) ~= plm.N
+            plm.Wset{w} = plm.Wset{z}(plm.subjidx,:);
+        end
+        if size(plm.Wset{z},1) ~= plm.N
+            error([
+                'The number of rows in the W nuisance covariate matrix does\n' ...
+                'not match the number of observations in the data.\n' ...
+                '- Rows in the matrix: %d\n' ...
+                '- Observations in the data: %d\n' ...
+                'In file %s\n'], ...
+                size(plm.Wset{w},1),plm.N,opts.w{w});
+        end
+        if any(isnan(plm.Wset{w}(:))) || any(isinf(plm.Wset{w}(:)))
+            error([
+                'The nuisance covariate matrix cannot contain NaN or Inf.\n' ...
+                'In file %s\n'],opts.w{w});
+        end
+    end
+end
+
+% Include the WEV per datum (assume Nw is one for now)
+if opts.wevperdat
+    for ev = 1:plm.nWEVdat
+        disp('ndims')
+        ndims(plm.Wset{1})
+        nwcols = size(plm.Wset{1},2); % number of nuisance variables (columns in -z)
+        if ndims(plm.Wset{1}) == 2 %#ok<ISMAT>
+            plm.Wset{1} = ...
+                repmat(plm.Wset{1},[1 1 plm.WEVsiz(ev)]);
+        end
+        permute(plm.WEVset{ev},[1 3 2])
+        plm.Wset{1}(:,nwcols+ev,:) = ...
+            permute(plm.WEVset{ev},[1 3 2]);
+    end
+    plm = rmfield(plm,{'WEVset','WEVsiz'});
+else 
+    % Make Wset the right size if no wevperdat 
+    if ndims(plm.Wset{1}) == 2 %#ok<ISMAT>
+        plm.Wset{1} = ...
+            repmat(plm.Wset{1},[1 1 size(plm.Xset{1},2)]);
+    end
+end
+
 % pause(10)
 % Some related sanity checks
 % if opts.evperdat
@@ -446,7 +611,6 @@ plm.Xset
 %         end
 %     end
 % end
-opts.idxout=true;
 
 % Make sure EVs of interest aren't represented also in the nuisance
 % Note that some lines below the same is done for the cases in which 
@@ -461,11 +625,14 @@ if ~ opts.cmcx
     plm.seq = cell(1,1);
     for m = 1:1
         plm.seq{m} = cell(1,1);
-        for c = 1:1
+        if opts.cca.do
             Xtmp = plm.Xset{1}(:,:,1);
-            [~,~,plm.seq{m}{c}] = unique(Xtmp,'rows');
-            seqtmp(:,j) = plm.seq{m}{c};
-            j = j + 1;
+            Ztmp = plm.Zset{1}(:,:,1);
+            Xtmp   = Xtmp(1:size(Xtmp,1)-rank(Ztmp),:);
+            %seqtmp = seqtmp(1:size(Xtmp,1),:);
+            [~,~,plm.seq{1}{1}] = unique(Xtmp,'rows');
+%             seqtmp(:,j) = plm.seq{m}{c};
+%             j = j + 1;
         end
     end
     tmp = sum(diff(seqtmp,1,2).^2,2);
@@ -492,20 +659,11 @@ if opts.cmcx % note can't use 'else' here because opts.cmcx is modified in the '
 end
 
 % Make sure not too many components are asked if CCA or PLS are used
-if opts.CCA || opts.PLS
+if opts.cca.do || opts.pls.do
     if opts.ccaorplsparm > plm.nY
         error(['Cannot ask more canonical correlations (CCA) or \n', ...
             'score vectors (PLS) (k=%d) than the number of modalities (#(-i)=%d).\n'],...
             opts.ccaorplsparm,plm.nY);
-    end
-    for m = 1:plm.nM
-        for c = 1:plm.nC(m)
-            if opts.ccaorplsparm > plm.rC{m}(c)
-                error(['Cannot ask more canonical correlations (for CCA) or score \n', ...
-                    'vectors (for PLS) than the rank of the contrast (k=%d > rank=%d).\n', ...
-                    'Please check design %d, contrast %d.'],opts.ccaorplsparm,plm.rC{m}(c),m,c);
-            end
-        end
     end
 end
 
@@ -544,7 +702,6 @@ else
     plm.EB = palm_reindex(plm.EB,'fixleaves');
 end
 
-
 % Mean center input data (-demean)
 if opts.demean
     for m = 1:numel(plm.Xset)
@@ -553,8 +710,15 @@ if opts.demean
     for y = 1:plm.nY
         plm.Yset{y} = bsxfun(@minus,plm.Yset{y},mean(plm.Yset{y},1));
     end
-    for m = 1:Nz
-        plm.Zset{m} = bsxfun(@minus,plm.Zset{m},mean(plm.Zset{m},1));
+    if Nz >0
+        for m = 1:Nz
+            plm.Zset{m} = bsxfun(@minus,plm.Zset{m},mean(plm.Zset{m},1));
+        end
+    end
+    if Nw > 0
+        for m = 1:Nw
+            plm.Wset{m} = bsxfun(@minus,plm.Wset{m},mean(plm.Wset{m},1));
+        end
     end
 end
 

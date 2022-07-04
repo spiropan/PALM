@@ -35,9 +35,17 @@ tocI = toc(ticI);
 fprintf('Elapsed time parsing inputs: ~ %g seconds.\n',tocI);  
     
 if opts.cca.do
-    [opts,plm] = palm_prepcca(opts,plm)   % <- (new code)
-    [opts,plm] = palm_permcca(opts,plm)   % <- (new code)
-    palm_savecca(opts,plm)                % <- (new code)
+    ticP = tic;
+    [opts,plm] = palm_prepcca(opts,plm);   % <- (new code)
+    save('tmp_out.mat','opts','plm')
+    [opts,plm] = palm_permcca(opts,plm);   % <- (new code)
+    save('tmp_out.mat','opts','plm');
+    tocP = toc(ticP);
+    
+    % Save cca outputs
+    ticS = tic;
+    palm_savecca(plm,opts)                % <- (new code)
+    tocS = toc(ticS);
 else
     ticP = tic;
     [opts,plm] = palm_prepglm(opts,plm);

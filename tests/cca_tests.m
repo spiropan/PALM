@@ -1,90 +1,107 @@
+clear
+% This file will test PALM CCA with various input data and options
+% Test cases: A -   Y is imaging, X is also imaging using CSV (voxelwise)
+%                   Run partial CCA with Z. Z has 3 columns (last one is zevperdat).
+
+%             B -   Same as A except W is also defined. W has 3 columns (last
+%                   one is wevperdat
+
+%             C -   Same as A except Z is applied only to X (right side,
+%                   i.e. semipartial CCA)
+
+%             D -   Y is imaging, X is clinical variables using CSV (voxelwise)
+
+% Add palm and permcca code to path
 addpath ../../PALM
 addpath ../../permcca
 
-N = 50;
-nV = 8;
-rng(1)
+% Set options for testing 
+new_data=0;     % Generate new test files? 
+run_permcca=1;  % Run permcca to compare results to?
+test='C';       % Set the test case
+rng(1);         % Seed random number generator
+
+% Options for generated CSV input files
+N = 50; % Number of subjects 
+nV = 8; % Number of voxels (for
+
+% Delete old results files 
 delete TEST_*.txt test_cca_dat_cca*.csv
-new_data=0; run_permcca=1; % COME BACK AND RUN permcca with evperdat case
 
-% Test cases: A - Y is imaging, X is also imaging (evperdat)
-%             B - Y is imaging, X is clinical variables
+% Generate new test data files if requested
+if new_data
+    % create imaging data cvs files
+    Y1 = randn(N,nV); csvwrite('imaging_data1.csv',Y1);
+    Y2 = randn(N,nV); csvwrite('imaging_data2.csv',Y2);
+    Y3 = randn(N,nV); csvwrite('imaging_data3.csv',Y3);
+    Y4 = randn(N,nV); csvwrite('imaging_data4.csv',Y4);
+    Y5 = randn(N,nV); csvwrite('imaging_data5.csv',Y5);
+    Y6 = randn(N,nV); csvwrite('imaging_data6.csv',Y6);
+    Y7 = randn(N,nV); csvwrite('imaging_data7.csv',Y7);
+    
+    % create Z and W nuisance files
+    Zmat = [randn(N,1) rand(N,1)>.5];
+    csvwrite('Zmat.csv',Zmat);
+    Z1 = randn(N,nV); csvwrite('imaging_data8.csv',Z1);
+    
+    Wmat = [randn(N,1) rand(N,1)>.5];
+    csvwrite('Wmat.csv',Wmat);
+    W1 = randn(N,nV); csvwrite('imaging_data9.csv',W1);
+end
 
-test='A';
+% Importdata for permcca if running permcca
+if run_permcca
+    Z=importdata('Zmat.csv'); W=importdata('Wmat.csv');
+    Y1=importdata('imaging_data1.csv'); Y2=importdata('imaging_data2.csv');
+    Y3=importdata('imaging_data3.csv'); Y4=importdata('imaging_data4.csv');
+    Y5=importdata('imaging_data5.csv'); Y6=importdata('imaging_data6.csv');
+    Y7=importdata('imaging_data7.csv'); Z1=importdata('imaging_data8.csv');
+    W1=importdata('imaging_data9.csv');
+end
+               
 switch test
-    case 'A'
-        % Create data
-        % create design with:
-        % EV1: dummy (for imaging_data1, i.e., the first -evperdat)
-        % EV2: dummy (for imaging_data2, i.e., the second -evperdat)
-        % EV3: dummy (for imaging_data3, i.e., the third -evperdat)
-        % EV4: dummy (for imaging_data4, i.e., the fourth -evperdat)
-        % EV5: meanFD  -  nuisance regressor
-        % EV6: age     -  nuisance regressor
-        % EV7: sex     -  nuisance regressor
-        % save the above as design.csv
-        if new_data
-            
-            % create imaging data cvs files
-            Y1 = randn(N,nV); csvwrite('imaging_data1.csv',Y1);
-            Y2 = randn(N,nV); csvwrite('imaging_data2.csv',Y2);
-            Y3 = randn(N,nV); csvwrite('imaging_data3.csv',Y3);
-            Y4 = randn(N,nV); csvwrite('imaging_data4.csv',Y4);
-            Y5 = randn(N,nV); csvwrite('imaging_data5.csv',Y5);
-            Y6 = randn(N,nV); csvwrite('imaging_data6.csv',Y6);
-            Y7 = randn(N,nV); csvwrite('imaging_data7.csv',Y7);
-            
-            % create nuisance files
-            Z = [randn(N,1) rand(N,1) rand(N,1)>.5];
-            csvwrite('Zmat.csv',Z);
-            
-        end
-        
+    case 'A'     
         % Call PALM
-        % Y is imaging data, X is also imaging data, using csv files
-        tic
-%         palm -i imaging_data1.csv -i imaging_data2.csv -i imaging_data3.csv -d design.csv -nounivariate...
-%             -n 50 -t tcontrasts.csv -f fcontrasts.csv -mv CCA 2 -fonly -demean -o test_cca...
-%             -evperdat imaging_data4.csv 1 1 -evperdat imaging_data5.csv 2 1...
-%             -evperdat imaging_data6.csv 3 1 -evperdat imaging_data7.csv 4 1...
-%             
+        tic           
         palm -y imaging_data1.csv -y imaging_data2.csv -y imaging_data3.csv...
-            -n 50 -o test_cca -semipartial x -cca 2 -z Zmat.csv...
-            -x imaging_data4.csv -x imaging_data5.csv -x imaging_data6.csv -x imaging_data7.csv...
-            
+            -n 50 -o test_cca -cca 2 -z Zmat.csv -zevperdat imaging_data8.csv...
+            -x imaging_data4.csv -x imaging_data5.csv -x imaging_data6.csv -x imaging_data7.csv
         palm_time = toc
         
-        % save out of the files for all tested canonical correlations. For
-        % CCA argument the number will be the number of corrs tested.
-        % in test_cca_data_cca1 pad the number with zeros depending on size of  01, 02, 03
-        
+        % Run permcca to compare to PALM if requested
         if run_permcca
-            clear rmat wmat
-            Z=importdata('Zmat.csv');
-            Y1=importdata('imaging_data1.csv'); Y2=importdata('imaging_data2.csv');
-            Y3=importdata('imaging_data3.csv'); Y4=importdata('imaging_data4.csv');
-            Y5=importdata('imaging_data5.csv'); Y6=importdata('imaging_data6.csv');
-            Y7=importdata('imaging_data7.csv');
-            
-            wmat=[]; Amat=[]; Bmat=[]; Umat=[]; Vmat=[];
+            rmat=[]; wmat=[]; Amat=[]; Bmat=[]; Umat=[]; Vmat=[];
+            tic
+            for i=1:nV
+                [punc(i,:),r{i},A{i},B{i},U{i},V{i},lW{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], [Y4(:,i) Y5(:,i) Y6(:,i) Y7(:,i)], 50, [Z Z1(:,i)]);
+                rmat(i,:)=r{i}; lWmat(i,:)=lW{i}; Amat=[Amat A{i}]; Bmat=[Bmat B{i}]; Umat=[Umat U{i}]; Vmat=[Vmat V{i}];
+            end
+            permcca_time = toc
+        end
+        
+        disp(['PALM took ' num2str(palm_time,'%0.2f') ' seconds'])
+        if run_permcca, disp(['permcca took ' num2str(permcca_time,'%0.2f') ' seconds']); end
+        
+    case 'B'
+        % Call PALM
+        tic           
+        palm -y imaging_data1.csv -y imaging_data2.csv -y imaging_data3.csv...
+            -n 50 -o test_cca -cca 2 -z Zmat.csv -zevperdat imaging_data8.csv...
+            -w Wmat.csv -wevperdat imaging_data9.csv...
+            -x imaging_data4.csv -x imaging_data5.csv -x imaging_data6.csv -x imaging_data7.csv
+        palm_time = toc
+        
+        % Run permcca to compare to PALM if requested
+        if run_permcca
+            rmat=[]; wmat=[]; Amat=[]; Bmat=[]; Umat=[]; Vmat=[]; lWmat=[];
             tic
             for i=1:nV
                 %[pfwer,r(i),A,B,U,V] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)],X,20,Z,W,Sel,partial,Pset)
-                [punc(i,:),r{i},A{i},B{i},U{i},V{i},W{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], [Y4(:,i) Y5(:,i) Y6(:,i) Y7(:,i)], 50, Z);
+                [punc(i,:),r{i},A{i},B{i},U{i},V{i},lW{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], [Y4(:,i) Y5(:,i) Y6(:,i) Y7(:,i)],50,[Z Z1(:,i)],[W W1(:,i)]);
                 % Store and write out outputs
-                rmat(i,:)=r{i}; Wmat(i,:)=W{i}; Amat=[Amat A{i}]; Bmat=[Bmat B{i}];
-                Umat=[Umat U{i}]; Vmat=[Vmat V{i}];
+                rmat(i,:)=r{i}; lWmat(i,:)=lW{i}; Amat=[Amat A{i}]; Bmat=[Bmat B{i}]; Umat=[Umat U{i}]; Vmat=[Vmat V{i}];
             end
             permcca_time = toc
-            
-            disp('Unc p-values:')
-            dlmwrite('TEST_permcca_punc.txt',punc,'delimiter','\t')
-            dlmwrite('TEST_permcca_r.txt',rmat,'delimiter','\t')
-            dlmwrite('TEST_permcca_lW.txt',Wmat,'delimiter','\t')
-            dlmwrite('TEST_permcca_A.txt',Amat,'delimiter','\t')
-            dlmwrite('TEST_permcca_B.txt',Bmat,'delimiter','\t')
-            dlmwrite('TEST_permcca_U.txt',Umat,'delimiter','\t')
-            dlmwrite('TEST_permcca_V.txt',Vmat,'delimiter','\t')
         end
         
         disp(['PALM took ' num2str(palm_time,'%0.2f') ' seconds'])
@@ -92,26 +109,39 @@ switch test
             disp(['permcca took ' num2str(permcca_time,'%0.2f') ' seconds'])
         end
         
-    case 'B'
-        if new_data
-            M = [randn(N,1) randn(N,1) rand(N,1) rand(N,1)>.5];
-            csvwrite('design.csv',M);
-            
-            % create imaging data cvs files
-            Y1 = randn(N,nV); csvwrite('imaging_data1.csv',Y1);
-            Y2 = randn(N,nV); csvwrite('imaging_data2.csv',Y2);
-            Y3 = randn(N,nV); csvwrite('imaging_data3.csv',Y3);
-            
-            % create contrast files
-            C=eye(4); csvwrite('tcontrasts.csv',C);
-            C = [1 1 0 0]; % First two vars are of interest
-            csvwrite('fcontrasts.csv',C)
+    case 'C'
+        % Call PALM
+        tic           
+        palm -y imaging_data1.csv -y imaging_data2.csv -y imaging_data3.csv...
+            -n 50 -o test_cca -cca 2 -z Zmat.csv -zevperdat imaging_data8.csv -semipartial x...
+            -x imaging_data4.csv -x imaging_data5.csv -x imaging_data6.csv -x imaging_data7.csv
+        palm_time = toc
+        
+        % Run permcca to compare to PALM if requested
+        if run_permcca
+            rmat=[]; wmat=[]; Amat=[]; Bmat=[]; Umat=[]; Vmat=[];
+            tic
+            for i=1:nV
+                [punc(i,:),r{i},A{i},B{i},U{i},V{i},lW{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], [Y4(:,i) Y5(:,i) Y6(:,i) Y7(:,i)], 50, [], [Z Z1(:,i)],[],false);
+                rmat(i,:)=r{i}; lWmat(i,:)=lW{i}; Amat=[Amat A{i}]; Bmat=[Bmat B{i}]; Umat=[Umat U{i}]; Vmat=[Vmat V{i}];
+            end
+            permcca_time = toc
         end
+        
+        disp(['PALM took ' num2str(palm_time,'%0.2f') ' seconds'])
+        if run_permcca, disp(['permcca took ' num2str(permcca_time,'%0.2f') ' seconds']); end
+        
+    case 'D'
         
         % Call PALM
         % Y is imaging data, X is clinical variables, using csv files
-        palm -i imaging_data1.csv -i imaging_data2.csv -i imaging_data3.csv -d design.csv -nounivariate...
-            -n 50 -t tcontrasts.csv -f fcontrasts.csv -mv CCA 1 -fonly -o test_cca
+%         palm -i imaging_data1.csv -i imaging_data2.csv -i imaging_data3.csv -d design.csv -nounivariate...
+%             -n 50 -t tcontrasts.csv -f fcontrasts.csv -mv CCA 1 -fonly -o test_cca
+        
+        palm -y imaging_data1.csv -x imaging_data2.csv -z Zmat.csv...
+            -n 50 -o test_cca -semipartial x -cca 1 
+        % palm -y fileY.ext -x fileX.ext -z fileZ1.csv -zperdat fileZ2.ext -w fileW1.csv -w fileW2.ext
+        % Y_{NxP} ~ X_{NxQ}
         
         if run_permcca
             M=importdata('design.csv'); Y1=importdata('imaging_data1.csv');
@@ -120,44 +150,23 @@ switch test
             X = M(:,[1:2]); Z = M(:,[3:4]); wmat=[]; Amat=[]; Bmat=[]; Umat=[]; Vmat=[]; punc=[]; rmat=[];
             for i=1:nV
                 %[pfwer,r(i),A,B,U,V] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)],X,20,Z,W,Sel,partial,Pset)
-                [punc(i,:),r{i},A{i},B{i},U{i},V{i},W{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], X, 50, Z);
+                [punc(i,:),r{i},A{i},B{i},U{i},V{i},lW{i}] = permcca([Y1(:,i) Y2(:,i) Y3(:,i)], X, 50, [Z Z1(:,i)]);
                 
                 % Store and write out outputs
                 rmat(i,:)=r{i}; Wmat(i,:)=W{i}; Amat=[Amat A{i}]; Bmat=[Bmat B{i}];
                 Umat=[Umat U{i}]; Vmat=[Vmat V{i}];
             end
             
-            disp('Unc p-values:')
-            dlmwrite('TEST_permcca_punc.txt',punc,'delimiter','\t')
-            dlmwrite('TEST_permcca_r.txt',rmat,'delimiter','\t')
-            dlmwrite('TEST_permcca_lW.txt',wmat,'delimiter','\t')
-            dlmwrite('TEST_permcca_A.txt',Amat,'delimiter','\t')
-            dlmwrite('TEST_permcca_B.txt',Bmat,'delimiter','\t')
-            dlmwrite('TEST_permcca_U.txt',Umat,'delimiter','\t')
-            dlmwrite('TEST_permcca_V.txt',Vmat,'delimiter','\t')
         end
 end
 
-%% documentation for https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/PALM/UserGuide
-
-% -cca <statistic> <k> <W> <partial>
-
-% Do classical multivariate analysis (MV), such as MANOVA and MANCOVA, using the the 
-% specified statistic, which can be one of: Wilks, HotellingTsq, Lawley, Pillai, Roy_ii, 
-% Roy_iii. All but Roy_iii can be used with spatial statistics.
-
-% If -cca specified, The integer <k> is the number of canonical correlations 
-% to test for statistical inference. The <W> is an (optional) csv file specifying nuisance variables 
-% for the right side only (bipartial CCA), while <partial> is an (optional) boolean indicating 
-% whether this is partial (true) or part (false) CCA. The default is true,
-% i.e., partial CCA. Note that Z - nuisance variables for both (partial CCA) or left side
-% (part CCA) only - is partitioned from the design matrix (see description
-% for the -d option). See tests/cca_tests.m for various examples on how to call PALM for CCA. 
-
-% add -cca option, specificy statistics Wilks lambda and Roy's largest root
-% root, and <k>. If user doesn't specfiicy k, by default just do first cc,
-% k='All' if want all 
-
+% Write out permcca files if permcca was requested
+if run_permcca
+    dlmwrite('TEST_permcca_punc.txt',punc,'delimiter','\t'); dlmwrite('TEST_permcca_r.txt',rmat,'delimiter','\t')
+    dlmwrite('TEST_permcca_lW.txt',lWmat,'delimiter','\t'); dlmwrite('TEST_permcca_A.txt',Amat,'delimiter','\t')
+    dlmwrite('TEST_permcca_B.txt',Bmat,'delimiter','\t'); dlmwrite('TEST_permcca_U.txt',Umat,'delimiter','\t')
+    dlmwrite('TEST_permcca_V.txt',Vmat,'delimiter','\t')
+end
 
 %%
 % Current:
@@ -229,6 +238,32 @@ end
 %    [opts,plm] = palm_glm(opts,plm)       <- current palm_core.m   lines 990-2456 & 2478-end
 %    palm_saveglm(opts,plm)                <- current palm_saveall.m
 % end
+
+%% June 9th notes
+% Y ~ X
+% nuisance variables: Z and W, respectively.
+% 
+% Each of these matrices can have its own number of columns.
+% 
+% For vertexwise CCA:
+% -y fileY1.ext -y fileY3.ext -y fileY3.ext, becomes the 3 columns of Y. 
+% 
+% same applies to the options -x, -z, and -w. 
+% 
+% Each file becomes a column of the respective variable.
+% 
+% Since this is vertexwise, perhaps one way of doing this would be assembling internally 
+% Y a 3D array of size N by nY by nV, where N is the number of subjects, nY is the number 
+% of columns in Y (i.e., the number of times -y was used) and nV is the number of voxels/vertices 
+% in each of the files supplied with -y. Do the same for X, Z, and W.
+% 
+% Then iterate over the levels (3rd dim) for each CCA, i.e., one CCA per vertex.
+% 
+% All files supplied with -y, -x, -z, and -w must have the same number of vertices, and must all 
+% be in register (the users will take care of that during the preprocessing, we don't have to.)
+% 
+% Z and W can be vertexwise (say, cortical thickness), or can be constant for all vertices (say, age, sex). 
+% In the latter, we can expand internally such that it becomes represented in the 3D array.
 
 %% nov 19th items
 % in palm_takeargs.m : 

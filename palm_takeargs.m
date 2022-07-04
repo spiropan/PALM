@@ -68,6 +68,8 @@ Nt     = sum(strcmp(vararginx,'-t'));        % number of t-contrast files
 Nf     = sum(strcmp(vararginx,'-f'));        % number of F-test files
 Ncon   = sum(strcmp(vararginx,'-con'));      % number of contrast files (t or F, mset format)
 Nevd   = sum(strcmp(vararginx,'-evperdat')); % number of EV per datum inputs
+Nzevd   = sum(strcmp(vararginx,'-zevperdat')); % number of ZEV per datum inputs (for CCA)
+Nwevd   = sum(strcmp(vararginx,'-wevperdat')); % number of WEV per datum inputs (for CCA)
 Nimiss = sum(strcmp(vararginx,'-imiss'));    % number of missing indicators for inputs
 Ndmiss = sum(strcmp(vararginx,'-dmiss'));    % number of missing indicators for designs
 opts.i      = cell(Ni,1);   % Input files (to constitute Y later)
@@ -98,13 +100,15 @@ opts.Nimiss   = Nimiss;   % Store Nimiss in orer pass it along to palm_prepglm.m
 opts.Ndmiss   = Ndmiss;   % Store Ndmiss in orer pass it along to palm_prepglm.m
 plm.subjidx   = [];       % Indices of subjects to keep
 plm.nEVdat    = Nevd;     % Store number of EV per datum
+plm.nZEVdat    = Nzevd;     % Store number of ZEV per datum (for CCA)
+plm.nWEVdat    = Nwevd;     % Store number of WEV per datum (for CCA)
 
 % These are to be incremented below
 i = 1; m = 1; d = 1;
 t = 1; s = 1;
 con = 1; ev = 1;
 imiss = 1; dmiss = 1;
-x = 1; y = 1; z = 1; w = 1; % For CCA
+x = 1; y = 1; z = 1; w = 1; zev = 1; wev = 1; % For CCA
 
 % Remove trailing empty arguments. This is useful for some Octave versions.
 while numel(vararginx) > 0 && isempty(vararginx{1})
@@ -153,6 +157,9 @@ while a <= narginx
                 opts.ccaorplsparm = vararginx{a+1};
                 a = a + 2;
             end
+            
+            % Save additional parameters
+            opts.idxout = true;
        
         case '-pls' % advanced
             
@@ -185,6 +192,9 @@ while a <= narginx
             a = a + 2;   
             
         case '-z' % basic
+            if z > 1
+                error('At most one csv file for z is allowed. To supply vertex or voxelwise nuisance vars use -zevperdat')
+            end
             
             % Get the filenames for nuisance (CCA left side or both)
             opts.z{z} = vararginx{a+1};
@@ -192,6 +202,9 @@ while a <= narginx
             a = a + 2;
             
         case '-w' % basic
+            if w > 1
+                error('At most one csv file for w is allowed. To supply vertex or voxelwise nuisance vars use -wevperdat')
+            end
             
             % Get the filenames for nuisance (CCA right side)
             opts.w{w} = vararginx{a+1};
@@ -237,6 +250,22 @@ while a <= narginx
                 opts.cca.theil.selectionmatrix{1} = vararginx{a+1};
                 a = a + 2;
             end
+            
+        case '-zevperdat' % advanced
+            
+            % Use one ZEV per datum?
+            opts.zevperdat = true;
+            opts.zevdatfile{zev} = vararginx{a+1};
+            zev = zev + 1;
+            a = a + 2;
+            
+        case '-wevperdat' % advanced
+            
+            % Use one ZEV per datum?
+            opts.wevperdat = true;
+            opts.wevdatfile{wev} = vararginx{a+1};
+            wev = wev + 1;
+            a = a + 2;
                  
         case '-m' % basic
             
@@ -870,38 +899,6 @@ while a <= narginx
                 % Check if method exists, and load extra parameters if needed
                 if ~any(methidx)
                     error('Multivariate statistic "%s" unknown.',vararginx{a+1});
-                elseif strcmpi(vararginx{a+1},'CCA')
-                    opts.MV  = false;
-                    opts.CCA = true;
-                    opts.PLS = false;
-                    if nargin == a + 1 || ...
-                            ischar(vararginx{a+2}) && ...
-                            strcmpi(vararginx{a+2}(1),'-')
-                        opts.ccaorplsparm = 1;
-                        a = a + 2;
-                    elseif ischar(vararginx{a+2})
-                        opts.ccaorplsparm = eval(vararginx{a+2});
-                        a = a + 3;
-                    else
-                        opts.ccaorplsparm = vararginx{a+2};
-                        a = a + 3;
-                    end
-                elseif strcmpi(vararginx{a+1},'PLS')
-                    opts.MV  = false;
-                    opts.CCA = false;
-                    opts.PLS = true;
-                    if nargin == a + 1 || ...
-                            ischar(vararginx{a+2}) && ...
-                            strcmpi(vararginx{a+2}(1),'-')
-                        opts.ccaorplsparm = 1;
-                        a = a + 2;
-                    elseif ischar(vararginx{a+2})
-                        opts.ccaorplsparm = eval(vararginx{a+2});
-                        a = a + 3;
-                    else
-                        opts.ccaorplsparm = vararginx{a+2};
-                        a = a + 3;
-                    end
                 else
                     opts.MV  = true;
                     opts.CCA = false;
